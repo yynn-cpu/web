@@ -3,77 +3,60 @@
         "symbol": "ETCUSDT",
         "strategy": "长影反转",
         "entry": 8.745,
-        "current": 9.701,
-        "dev": "-10.93%",
+        "current": 9.657,
+        "dev": "-10.43%",
         "wr": "100.00%",
         "profit": "152.00",
         "dd": "54.72",
-        "time": "19:28:59"
+        "hold": "3.63",
+        "time": "19:41:05"
     },
     {
         "symbol": "THETAUSDT",
         "strategy": "长影反转",
         "entry": 0.2024,
-        "current": 0.2079,
-        "dev": "-2.72%",
+        "current": 0.2071,
+        "dev": "-2.32%",
         "wr": "100.00%",
         "profit": "224.00",
         "dd": "148.75",
-        "time": "19:29:32"
+        "hold": "4.11",
+        "time": "19:41:37"
     },
     {
         "symbol": "SNXUSDT",
         "strategy": "长影反转",
         "entry": 0.392,
-        "current": 0.385,
-        "dev": "1.79%",
+        "current": 0.386,
+        "dev": "1.53%",
         "wr": "100.00%",
         "profit": "280.00",
         "dd": "206.23",
-        "time": "19:29:52"
+        "hold": "3.17",
+        "time": "19:41:56"
+    },
+    {
+        "symbol": "KSMUSDT",
+        "strategy": "长影反转",
+        "entry": 4.867,
+        "current": 4.979,
+        "dev": "-2.30%",
+        "wr": "100.00%",
+        "profit": "240.00",
+        "dd": "182.06",
+        "hold": "3.70",
+        "time": "19:42:22"
     },
     {
         "symbol": "AXSUSDT",
         "strategy": "长影反转",
         "entry": 1.326,
-        "current": 1.349,
-        "dev": "-1.73%",
+        "current": 1.348,
+        "dev": "-1.66%",
         "wr": "94.87%",
         "profit": "-35.83",
         "dd": "972.87",
-        "time": "19:30:40"
-    },
-    {
-        "symbol": "FLOWUSDT",
-        "strategy": "长影反转",
-        "entry": 0.03816,
-        "current": 0.03834,
-        "dev": "-0.47%",
-        "wr": "100.00%",
-        "profit": "160.00",
-        "dd": "123.08",
-        "time": "19:32:05"
-    },
-    {
-        "symbol": "STGUSDT",
-        "strategy": "长影反转",
-        "entry": 0.1447,
-        "current": 0.1468,
-        "dev": "-1.45%",
-        "wr": "100.00%",
-        "profit": "208.00",
-        "dd": "200.73",
-        "time": "19:32:25"
-    },
-    {
-        "symbol": "HIGHUSDT",
-        "strategy": "长影反转",
-        "entry": 0.1541,
-        "current": 0.1563,
-        "dev": "-1.43%",
-        "wr": "100.00%",
-        "profit": "200.00",
-        "dd": "203.02",
-        "time": "19:32:49"
+        "hold": "4.77",
+        "time": "19:42:35"
     }
 ]
