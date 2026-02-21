@@ -178,5 +178,65 @@
         "dd": "211.72",
         "hold": "2.65",
         "time": "20:00:22"
+    },
+    {
+        "symbol": "DRIFTUSDT",
+        "strategy": "长影反转",
+        "entry": 0.0932,
+        "current": 0.0919,
+        "dev": "1.39%",
+        "wr": "100.00%",
+        "profit": "312.00",
+        "dd": "544.91",
+        "hold": "3.90",
+        "time": "20:00:51"
+    },
+    {
+        "symbol": "BANUSDT",
+        "strategy": "长影反转",
+        "entry": 0.12697,
+        "current": 0.12915,
+        "dev": "-1.72%",
+        "wr": "93.02%",
+        "profit": "39.85",
+        "dd": "598.59",
+        "hold": "6.19",
+        "time": "20:01:01"
+    },
+    {
+        "symbol": "AKTUSDT",
+        "strategy": "长影反转",
+        "entry": 0.3268,
+        "current": 0.3228,
+        "dev": "1.22%",
+        "wr": "100.00%",
+        "profit": "264.00",
+        "dd": "212.06",
+        "hold": "5.30",
+        "time": "20:01:03"
+    },
+    {
+        "symbol": "MORPHOUSDT",
+        "strategy": "长影反转",
+        "entry": 1.5765,
+        "current": 1.6131,
+        "dev": "-2.32%",
+        "wr": "97.62%",
+        "profit": "183.40",
+        "dd": "324.44",
+        "hold": "5.83",
+        "time": "20:01:12"
+    },
+    {
+        "symbol": "CHILLGUYUSDT",
+        "strategy": "长影反转",
+        "entry": 0.01109,
+        "current": 0.01118,
+        "dev": "-0.81%",
+        "wr": "100.00%",
+        "profit": "424.00",
+        "dd": "227.71",
+        "hold": "2.28",
+        "time": "20:01:14"
     }
 ]
