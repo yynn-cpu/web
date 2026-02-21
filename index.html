@@ -2,72 +2,76 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大笨桶信号工作站</title>
+    <title>大笨桶实盘扫描工作站</title>
     <style>
-        body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background-color: #f6f8fa; margin: 0; padding: 20px; color: #24292e; }
-        .container { max-width: 1000px; margin: 0 auto; background: #fff; border: 1px solid #d0d7de; border-radius: 6px; overflow: hidden; }
-        .header { padding: 16px; background: #f6f8fa; border-bottom: 1px solid #d0d7de; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 16px; margin: 0; }
-        .update-time { font-size: 12px; color: #57606a; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { text-align: left; padding: 12px; background: #f6f8fa; border-bottom: 1px solid #d0d7de; color: #57606a; }
-        td { padding: 12px; border-bottom: 1px solid #d0d7de; }
-        tr:hover { background-color: #f6f8fa; }
-        .symbol { font-weight: 600; color: #0969da; }
-        .winrate { font-weight: bold; color: #1a7f37; }
-        .empty { padding: 40px; text-align: center; color: #57606a; }
+        body { font-family: -apple-system, sans-serif; background: #f6f8fa; padding: 20px; }
+        .card { background: white; border: 1px solid #d0d7de; border-radius: 6px; padding: 20px; max-width: 900px; margin: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 10px; font-size: 18px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { text-align: left; background: #f6f8fa; padding: 10px; color: #57606a; font-size: 13px; }
+        td { padding: 12px; border-bottom: 1px solid #eaecef; font-size: 14px; }
+        .up { color: #22a639; font-weight: bold; }
+        .loading { color: #0969da; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📡 实盘合约扫描结果</h1>
-            <span id="update-time" class="update-time">等待扫描...</span>
-        </div>
-        <table id="signal-table">
+    <div class="card">
+        <h2>📡 实时合约强势币扫描 <span id="status" class="loading">正在连接中转站...</span></h2>
+        <table id="targetTable">
             <thead>
-                <tr>
-                    <th>币种</th><th>策略</th><th>现价</th><th>偏离</th><th>回测胜率</th><th>历史盈利</th>
-                </tr>
+                <tr><th>币种</th><th>价格</th><th>24h涨幅</th><th>操作建议</th></tr>
             </thead>
             <tbody id="content">
-                <tr><td colspan="6" class="empty">正在获取最新信号...</td></tr>
+                <tr><td colspan="4">等待初始化...</td></tr>
             </tbody>
         </table>
     </div>
 
     <script>
-        async function fetchResults() {
+        // 【注意】请把下面这一行换成你刚才生成的 Worker 地址！
+        const PROXY_URL = "https://bitter-dream-fe9c.2xiaxiaxia.workers.dev";
+
+        async function scan() {
+            const status = document.getElementById('status');
+            const content = document.getElementById('content');
+            
             try {
-                const response = await fetch('results.json?t=' + Date.now());
-                const data = await response.json();
-                const container = document.getElementById('content');
+                status.innerText = "🔍 正在扫描全场行情...";
+                // 通过中转站获取所有合约的 24h 价格变动
+                const res = await fetch(`${PROXY_URL}/fapi/v1/ticker/24hr`);
+                const data = await res.json();
                 
-                if (data.length === 0) {
-                    container.innerHTML = '<tr><td colspan="6" class="empty">当前无符合条件的有效信号</td></tr>';
+                // 策略：筛选涨幅 >= 5% 且是 USDT 结算的合约
+                const signals = data.filter(item => 
+                    parseFloat(item.priceChangePercent) >= 5 && item.symbol.endsWith("USDT")
+                ).sort((a, b) => b.priceChangePercent - a.priceChangePercent);
+                
+                status.innerText = `✅ 扫描完成 | 发现 ${signals.length} 个强信号 | 更新时间: ${new Date().toLocaleTimeString()}`;
+                
+                if(signals.length === 0) {
+                    content.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">当前行情平淡，暂无强力信号</td></tr>';
                     return;
                 }
 
-                document.getElementById('update-time').innerText = "更新于: " + data[0].update_time;
-                let rows = "";
-                data.forEach(item => {
-                    rows += `<tr>
-                        <td class="symbol">${item.symbol}</td>
-                        <td>${item.strategy}</td>
-                        <td>${item.current}</td>
-                        <td>${item.deviation}</td>
-                        <td class="winrate">${item.winrate}</td>
-                        <td>${item.profit} USDT</td>
-                    </tr>`;
-                });
-                container.innerHTML = rows;
+                content.innerHTML = signals.map(s => `
+                    <tr>
+                        <td><b>${s.symbol}</b></td>
+                        <td>${parseFloat(s.lastPrice)}</td>
+                        <td class="up">+${s.priceChangePercent}%</td>
+                        <td>建议关注回调买入</td>
+                    </tr>
+                `).join('');
+
             } catch (e) {
-                document.getElementById('content').innerHTML = '<tr><td colspan="6" class="empty">暂无数据 (等待首次扫描完成)</td></tr>';
+                status.innerText = "❌ 中转站连接失败，请检查 Worker 地址";
+                console.error(e);
             }
         }
-        fetchResults();
-        setInterval(fetchResults, 60000); // 每分钟自动刷新页面数据
+
+        // 立即执行一次
+        scan();
+        // 每 60 秒自动刷一次
+        setInterval(scan, 60000);
     </script>
 </body>
 </html>
