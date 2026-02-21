@@ -2,38 +2,27 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>大笨桶实盘扫描工作站 - 实时版</title>
+    <title>大笨桶实盘全能扫描器 - 策略增强版</title>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --g-blue: #1a73e8;
-            --g-green: #34a853;
-            --g-red: #ea4335;
-            --g-grey: #5f6368;
-            --bg: #f8f9fa;
-        }
-        body { font-family: 'Google Sans', sans-serif; background: var(--bg); color: #202124; margin: 0; padding: 20px; }
-        .header { max-width: 1000px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; }
-        .card { max-width: 1000px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(60,64,67,0.3); overflow: hidden; }
+        :root { --g-blue: #1a73e8; --g-green: #34a853; --g-red: #ea4335; --g-grey: #5f6368; }
+        body { font-family: 'Google Sans', sans-serif; background: #f8f9fa; color: #202124; padding: 20px; }
+        .header { max-width: 1100px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; }
+        .card { max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(60,64,67,0.3); overflow: hidden; }
         .status-bar { padding: 10px 20px; background: #e8f0fe; color: var(--g-blue); font-size: 13px; display: flex; align-items: center; gap: 10px; }
-        .dot { width: 8px; height: 8px; background: #ccc; border-radius: 50%; }
-        .dot.active { background: var(--g-green); box-shadow: 0 0 5px var(--g-green); }
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 16px; background: #fff; border-bottom: 1px solid #eee; color: var(--g-grey); font-size: 14px; }
-        td { padding: 16px; border-bottom: 1px solid #f1f3f4; font-size: 14px; }
+        th { text-align: left; padding: 15px; background: #fafafa; border-bottom: 1px solid #eee; color: var(--g-grey); font-size: 13px; }
+        td { padding: 15px; border-bottom: 1px solid #f1f3f4; font-size: 14px; }
         .symbol { font-weight: bold; color: var(--g-blue); }
-        .percent { font-weight: bold; }
-        .up { color: var(--g-green); }
+        .winrate { color: var(--g-green); font-weight: bold; }
+        .strat-label { font-size: 11px; background: #f1f3f4; padding: 2px 6px; border-radius: 4px; color: #555; margin-right: 5px; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1 style="font-size: 22px; color: var(--g-grey); margin: 0;">📊 实盘实时扫描 (WebSocket)</h1>
-        <div class="status-bar">
-            <div id="dot" class="dot"></div>
-            <span id="status">正在初始化行情链接...</span>
-        </div>
+        <h1 style="font-size: 22px; color: var(--g-grey); margin: 0;">🚀 策略扫描 + 历史回测看板</h1>
+        <div class="status-bar"><span id="status">正在同步全场数据...</span></div>
     </div>
 
     <div class="card">
@@ -41,78 +30,118 @@
             <thead>
                 <tr>
                     <th>交易对</th>
-                    <th>当前价格</th>
-                    <th>24h 涨跌幅</th>
-                    <th>偏离度 (实时)</th>
-                    <th>策略状态</th>
+                    <th>命中策略</th>
+                    <th>现价/入场</th>
+                    <th>24h 涨幅</th>
+                    <th>历史胜率</th>
+                    <th>预计盈亏 (20x)</th>
                 </tr>
             </thead>
             <tbody id="resBody">
-                <tr><td colspan="5" style="text-align:center; padding:60px; color:#999;">正在等待币安数据流，符合策略的信号将自动弹出...</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding:60px; color:#999;">正在实时捕捉强力信号并进行回测分析...</td></tr>
             </tbody>
         </table>
     </div>
 
 <script>
+    // 你的 Python 核心参数
+    const TP = 0.02, INVEST = 20, LEVERAGE = 20;
+    
+    // 公共跨域中转（解决你截图里的 CORS 报错）
+    const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
+    // 1. 策略定义逻辑
+    const STRATS = [
+        { name: "大阳后调", func: (d) => d[d.length-3].c >= d[d.length-3].o * 1.05 && d[d.length-2].c < d[d.length-2].o },
+        { name: "长影反转", func: (d) => d[d.length-2].c >= d[d.length-2].o * 1.05 && d[d.length-3].o < d[d.length-2].c },
+        { name: "缩量安全", func: (d) => {
+            const p2 = d[d.length-3], p1 = d[d.length-2];
+            return p2.c >= p2.o * 1.05 && Math.abs(p1.c - p1.o) < (p1.h - p1.l) * 0.3 && p1.c < p1.o;
+        }}
+    ];
+
     const resBody = document.getElementById('resBody');
-    const status = document.getElementById('status');
-    const dot = document.getElementById('dot');
+    const signalData = {}; // 存储所有币种的状态
 
-    // 策略参数
-    const TARGET_UP = 5.0; // 涨幅超过 5% 开始监控
-
-    // 建立 WebSocket 连接 (订阅全场 24h 统计数据)
-    // 这种方式不需要中转站，直接从浏览器连接币安
+    // 2. 建立实时连接
     const socket = new WebSocket('wss://fstream.binance.com/ws/!ticker@arr');
 
-    socket.onopen = () => {
-        status.innerText = "已实时连接币安行情流";
-        dot.classList.add('active');
-    };
-
-    socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+    socket.onmessage = async (event) => {
+        const rawData = JSON.parse(event.data);
+        const filtered = rawData.filter(item => item.s.endsWith('USDT') && parseFloat(item.P) >= 5);
         
-        // 过滤出符合你逻辑的币种：USDT 结算且涨幅 >= 5%
-        const signals = data.filter(item => 
-            item.s.endsWith('USDT') && parseFloat(item.P) >= TARGET_UP
-        );
-
-        // 按涨幅排序
-        signals.sort((a, b) => parseFloat(b.P) - parseFloat(a.P));
-
-        if (signals.length === 0) {
-            resBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:60px; color:#999;">当前市场平淡，暂无涨幅 > 5% 的强势合约</td></tr>';
-            return;
+        for (let s of filtered) {
+            // 如果是新发现的币种，去抓 K 线跑回测
+            if (!signalData[s.s]) {
+                signalData[s.s] = { ...s, testing: true };
+                runBacktest(s.s);
+            } else {
+                // 更新现有币种的价格
+                signalData[s.s].c = s.c;
+                signalData[s.s].P = s.P;
+            }
         }
-
-        // 更新界面
-        resBody.innerHTML = signals.map(s => {
-            const currentPrice = parseFloat(s.c);
-            const openPrice = parseFloat(s.o);
-            const deviation = ((openPrice - currentPrice) / openPrice * 100).toFixed(2);
-
-            return `
-                <tr>
-                    <td><span class="symbol">${s.s}</span></td>
-                    <td>${currentPrice.toFixed(4)}</td>
-                    <td class="percent up">+${s.P}%</td>
-                    <td>${deviation}%</td>
-                    <td><span style="background:#e6f4ea; color:#137333; padding:2px 8px; border-radius:4px; font-size:12px;">符合强势特征</span></td>
-                </tr>
-            `;
-        }).join('');
+        renderTable();
     };
 
-    socket.onerror = (err) => {
-        status.innerText = "连接出错，请检查网络是否能访问币安";
-        dot.classList.remove('active');
-    };
+    // 3. 核心回测函数（把你的 Python 回测翻译成 JS）
+    async function runBacktest(symbol) {
+        try {
+            // 使用公共中转抓取 100 天 K 线
+            const url = encodeURIComponent(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=100`);
+            const res = await fetch(CORS_PROXY + url);
+            const klines = await res.json();
+            const df = klines.map(k => ({ o: +k[1], h: +k[2], l: +k[3], c: +k[4] }));
 
-    socket.onclose = () => {
-        status.innerText = "连接已关闭，请刷新重试";
-        dot.classList.remove('active');
-    };
+            let hitStrats = [];
+            let totalWinrate = 0;
+            let totalProfit = 0;
+
+            for (let strat of STRATS) {
+                if (strat.func(df)) {
+                    let trades = 0, wins = 0, p = 0;
+                    // 回测过去 100 天
+                    for (let j = 10; j < df.length - 1; j++) {
+                        if (strat.func(df.slice(0, j + 1))) {
+                            trades++;
+                            const entry = df[j].o;
+                            if (df[j+1].l <= entry * (1 - TP)) { wins++; p += (TP * INVEST * LEVERAGE); }
+                            else { p += ((entry - df[j+1].c) / entry * INVEST * LEVERAGE); }
+                        }
+                    }
+                    if (trades > 0) {
+                        hitStrats.push(strat.name);
+                        totalWinrate = (wins / trades * 100).toFixed(1);
+                        totalProfit += p;
+                    }
+                }
+            }
+
+            if (hitStrats.length > 0) {
+                signalData[symbol].strats = hitStrats;
+                signalData[symbol].winrate = totalWinrate;
+                signalData[symbol].profit = totalProfit.toFixed(2);
+            } else {
+                delete signalData[symbol]; // 没命中策略的删掉
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function renderTable() {
+        const sorted = Object.values(signalData).filter(x => x.strats).sort((a,b) => b.P - a.P);
+        if (sorted.length === 0) return;
+        
+        resBody.innerHTML = sorted.map(s => `
+            <tr>
+                <td><span class="symbol">${s.s}</span></td>
+                <td>${s.strats.map(n => `<span class="strat-label">${n}</span>`).join('')}</td>
+                <td>${parseFloat(s.c).toFixed(4)} / ${parseFloat(s.o).toFixed(4)}</td>
+                <td class="winrate" style="color:var(--g-green)">+${s.P}%</td>
+                <td class="winrate">${s.winrate}%</td>
+                <td style="color:${s.profit >= 0 ? 'var(--g-green)' : 'var(--g-red)'}">${s.profit} USDT</td>
+            </tr>
+        `).join('');
+    }
 </script>
 </body>
 </html>
