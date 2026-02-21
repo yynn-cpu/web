@@ -83,13 +83,13 @@ def backtest(df, strategy_func):
     return {"trades": len(tdf), "winrate": (tdf["profit"] > 0).mean() * 100, "total_profit": tdf["profit"].sum(), "max_dd": tdf["max_dd"].max(), "avg_hold": tdf["hold"].mean()}
 
 def push_to_web(msg):
-    """强制推送逻辑：解决冲突并上传数据"""
+    """强制推送逻辑：解决一切冲突并上传数据"""
     try:
         subprocess.run("git add data.json", shell=True, capture_output=True)
         subprocess.run(f'git commit -m "{msg}"', shell=True, capture_output=True)
-        # 使用强制推送解决远程领先问题
+        # 使用强制推送解决远程领先导致的卡顿问题
         subprocess.run("git push origin main -f", shell=True, capture_output=True)
-        print(f"\n🚀 数据已同步 (信号数达到阈值: {msg})")
+        print(f"\n🚀 数据已强制同步至 GitHub (信号数: {msg})")
     except Exception as e:
         print(f"\n❌ 同步失败: {e}")
 
@@ -126,7 +126,7 @@ for sym in tqdm(symbols, desc="实盘扫描中"):
             "symbol": sym, "strategy": name, "entry": entry_price,
             "current": current_price, "dev": f"{deviation*100:.2f}%",
             "wr": f"{stats['winrate']:.2f}%", "profit": f"{stats['total_profit']:.2f}",
-            "dd": f"{stats['max_dd']:.2f}", "hold": f"{stats['avg_hold']:.2f}", # 持仓数据
+            "dd": f"{stats['max_dd']:.2f}", "hold": f"{stats['avg_hold']:.2f}", # 持仓天数
             "time": time.strftime("%H:%M:%S")
         })
         
@@ -134,7 +134,7 @@ for sym in tqdm(symbols, desc="实盘扫描中"):
         with open("data.json", "w", encoding="utf-8") as f:
             json.dump(web_results, f, indent=4, ensure_ascii=False)
 
-        # 满足5个信号推送一次
+        # 满足5个信号强制推送一次
         if signal_counter >= 5:
             push_to_web(f"Batch update: {signal_counter} signals")
             signal_counter = 0

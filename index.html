@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>大笨桶信号看板</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,11 +10,11 @@
     <div id="app" class="grid">正在连接本地基站...</div>
 
     <script>
-        // 策略的大白话词典
+        // 策略翻译词典
         const meanings = {
             "大阳后调": "前日大涨后，昨日收阴回踩。看今日能否企稳反弹。",
             "长影反转": "昨日暴力拉升>5%，极易出现获利回吐，看跌反转信号。",
-            "缩量安全": "大涨后昨日窄幅震荡（小实体），属于健康的强势调整。"
+            "缩量安全": "大涨后昨日窄幅震荡。属于风险较低的强势调整。"
         };
 
         async function load() {
@@ -25,22 +24,22 @@
                 const app = document.getElementById('app');
                 if(!data.length) { app.innerHTML = "等待信号中..."; return; }
                 
+                // 倒序排列，最新的信号排在最前面
                 app.innerHTML = data.reverse().map(i => `
                     <div class="card">
                         <div class="update-time">${i.time} 更新</div>
                         <div class="sym">${i.symbol} <span class="tag">${i.strategy}</span></div>
-                        <div class="meaning">💡 ${meanings[i.strategy] || '分析中...'}</div>
-                        <div class="metric"><span>现价 / 入场</span> <span>${i.current} / ${entryFormat(i.entry)}</span></div>
-                        <div class="metric"><span>平均持仓</span> <span class="hold-days">${i.hold} 天</span></div>
+                        <div class="meaning">💡 ${meanings[i.strategy] || '信号解析中...'}</div>
+                        <div class="metric"><span>现价 / 入场</span> <span>${i.current} / ${parseFloat(i.entry).toFixed(4)}</span></div>
+                        <div class="metric"><span>平均持仓</span> <span style="color:var(--primary)">${i.hold} 天</span></div>
                         <div class="metric"><span>历史胜率</span> <span class="win">${i.wr}</span></div>
-                        <div class="metric"><span>总盈亏</span> <span class="win">${i.profit} USDT</span></div>
+                        <div class="metric"><span>历史盈亏</span> <span class="win">${i.profit} USDT</span></div>
                         <div class="metric"><span>最大回撤</span> <span class="loss">${i.dd} USDT</span></div>
                     </div>
                 `).join('');
             } catch(e) {}
         }
-        function entryFormat(num) { return parseFloat(num).toFixed(4); }
-        setInterval(load, 15000);
+        setInterval(load, 15000); // 15秒刷新一次网页
         load();
     </script>
 </body>
