@@ -2,29 +2,20 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>大笨桶实盘看板</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #fff; padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .card { background: #1a1a1a; border-radius: 12px; padding: 20px; border-left: 5px solid #f0b90b; position: relative; }
-        .sym { font-size: 22px; font-weight: bold; color: #f0b90b; }
-        .tag { background: #333; padding: 4px 10px; border-radius: 6px; font-size: 13px; color: #aaa; margin-top: 5px; display: inline-block; }
-        .desc { font-size: 12px; color: #666; margin: 10px 0; font-style: italic; border-left: 2px solid #444; padding-left: 8px; }
-        .metric { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; }
-        .win { color: #0ecb81; font-weight: bold; }
-        .loss { color: #f6465d; }
-        .time { font-size: 10px; color: #444; position: absolute; top: 10px; right: 10px; }
-    </style>
+    <title>大笨桶信号看板</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1 style="text-align:center;">📡 实盘策略监控中</h1>
-    <div id="app" class="grid">正在加载本地数据...</div>
+    <h1 class="site-title">🛰️ 实盘策略即时看板</h1>
+    <div id="app" class="grid">正在连接本地基站...</div>
 
     <script>
-        const dict = {
-            "大阳后调": "前天大涨5%，昨日收阴回调。寻找止跌入场点。",
-            "长影反转": "昨日暴力拉升>5%且前日低位。小心多头衰竭，看跌信号。",
-            "缩量安全": "大涨后昨日窄幅震荡。属于风险较低的强势整理。"
+        // 策略的大白话词典
+        const meanings = {
+            "大阳后调": "前日大涨后，昨日收阴回踩。看今日能否企稳反弹。",
+            "长影反转": "昨日暴力拉升>5%，极易出现获利回吐，看跌反转信号。",
+            "缩量安全": "大涨后昨日窄幅震荡（小实体），属于健康的强势调整。"
         };
 
         async function load() {
@@ -32,23 +23,23 @@
                 const r = await fetch('data.json?t=' + Date.now());
                 const data = await r.json();
                 const app = document.getElementById('app');
-                if(!data.length) { app.innerHTML = "暂无信号"; return; }
+                if(!data.length) { app.innerHTML = "等待信号中..."; return; }
                 
-                app.innerHTML = data.map(i => `
+                app.innerHTML = data.reverse().map(i => `
                     <div class="card">
-                        <div class="time">${i.time} 更新</div>
-                        <div class="sym">${i.symbol}</div>
-                        <span class="tag">${i.strategy}</span>
-                        <div class="desc">💡 ${dict[i.strategy] || ''}</div>
-                        <div class="metric"><span>现价/入场</span> <span>${i.current} / ${i.entry}</span></div>
-                        <div class="metric"><span>平均持仓</span> <span style="color:#f0b90b">${i.hold} 天</span></div>
+                        <div class="update-time">${i.time} 更新</div>
+                        <div class="sym">${i.symbol} <span class="tag">${i.strategy}</span></div>
+                        <div class="meaning">💡 ${meanings[i.strategy] || '分析中...'}</div>
+                        <div class="metric"><span>现价 / 入场</span> <span>${i.current} / ${entryFormat(i.entry)}</span></div>
+                        <div class="metric"><span>平均持仓</span> <span class="hold-days">${i.hold} 天</span></div>
                         <div class="metric"><span>历史胜率</span> <span class="win">${i.wr}</span></div>
                         <div class="metric"><span>总盈亏</span> <span class="win">${i.profit} USDT</span></div>
                         <div class="metric"><span>最大回撤</span> <span class="loss">${i.dd} USDT</span></div>
                     </div>
                 `).join('');
-            } catch(e) { }
+            } catch(e) {}
         }
+        function entryFormat(num) { return parseFloat(num).toFixed(4); }
         setInterval(load, 15000);
         load();
     </script>
