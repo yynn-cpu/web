@@ -1,39 +1,20 @@
 # -*- coding: utf-8 -*-
-"""
-📡 实盘扫描器 + 即时回测（同步版）
-保持原始逻辑，杜绝未来函数差异
-"""
-
 import requests
 import pandas as pd
 from tqdm import tqdm
 import time
-import json  # 新增：用于导出数据给网页
+import json
+import subprocess  # 用于执行 Git 命令
 
-# ================= 参数 (保持不变) =================
+# ================= 参数 =================
 BASE_URL = "https://fapi.binance.com"
 INTERVAL = "1d"
 LIMIT = 300
 INVEST = 20
 LEVERAGE = 20
 TP = 0.02
-MAX_DEVIATION = 0.02      # 跌远阈值 +2%
-MAX_PULLUP = -0.20       # 爆拉阈值 -20%
-
-# ================= 工具函数 (保持不变) =================
-def get_symbols():
-    r = requests.get(f"{BASE_URL}/fapi/v1/exchangeInfo").json()
-    return [s["symbol"] for s in r["symbols"] if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT" and s["status"] == "TRADING"]
-
-def get_klines(symbol):
-    r = requests.get(f"{BASE_URL}/fapi/v1/klines", params={"symbol": symbol, "interval": INTERVAL, "limit": LIMIT}, timeout=10)
-    df = pd.DataFrame(r.json(), columns=["open_time","open","high","low","close","volume","close_time","qv","n","tb","tq","ignore"])
-    df[["open","high","low","close"]] = df[["open","high","low","close"]].astype(float)
-    return df
-
-def get_price(symbol):
-    r = requests.get(f"{BASE_URL}/fapi/v1/ticker/price", params={"symbol": symbol})
-    return float(r.json()["price"])
+MAX_DEVIATION = 0.02
+MAX_PULLUP = -0.20
 
 # ================= 策略逻辑 (原封不动) =================
 def is_signal_BIG_GREEN_RED_5(df):
@@ -51,7 +32,21 @@ def is_signal_NEW5_SMALL_BODY_REVERSE_SAFE(df):
     prev1 = df.iloc[-2]
     return (prev2["close"] >= prev2["open"] * 1.05 and abs(prev1["close"] - prev1["open"]) < (prev1["high"] - prev1["low"]) * 0.3 and prev1["close"] < prev1["open"])
 
-# ================= 回测逻辑 (原封不动) =================
+# ================= 功能函数 =================
+def get_symbols():
+    r = requests.get(f"{BASE_URL}/fapi/v1/exchangeInfo").json()
+    return [s["symbol"] for s in r["symbols"] if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT" and s["status"] == "TRADING"]
+
+def get_klines(symbol):
+    r = requests.get(f"{BASE_URL}/fapi/v1/klines", params={"symbol": symbol, "interval": INTERVAL, "limit": LIMIT}, timeout=10)
+    df = pd.DataFrame(r.json(), columns=["open_time","open","high","low","close","volume","close_time","qv","n","tb","tq","ignore"])
+    df[["open","high","low","close"]] = df[["open","high","low","close"]].astype(float)
+    return df
+
+def get_price(symbol):
+    r = requests.get(f"{BASE_URL}/fapi/v1/ticker/price", params={"symbol": symbol})
+    return float(r.json()["price"])
+
 def backtest(df, strategy_func):
     trades = []
     n = len(df)
@@ -75,26 +70,35 @@ def backtest(df, strategy_func):
     tdf = pd.DataFrame(trades)
     return {"trades": len(tdf), "winrate": (tdf["profit"] > 0).mean() * 100, "total_profit": tdf["profit"].sum(), "max_dd": tdf["max_dd"].max(), "avg_hold": tdf["hold"].mean()}
 
+def push_to_web(msg):
+    """静默执行 Git 推送"""
+    try:
+        subprocess.run("git add data.json", shell=True, capture_output=True)
+        subprocess.run(f'git commit -m "{msg}"', shell=True, capture_output=True)
+        subprocess.run("git push", shell=True, capture_output=True)
+        print(f"\n🚀 数据已同步至网页 (Reason: {msg})")
+    except Exception as e:
+        print(f"\n❌ 同步失败: {e}")
+
 # ================= 扫描主程序 =================
 symbols = get_symbols()
 print(f"🔍 扫描合约数量：{len(symbols)}")
 
 strategies = [
-    ("BIG_GREEN_RED_5%", is_signal_BIG_GREEN_RED_5),
-    ("NEW1_LONG_SHADOW_REVERSE", is_signal_NEW1_LONG_SHADOW_REVERSE),
-    ("NEW5_SMALL_BODY_REVERSE_SAFE", is_signal_NEW5_SMALL_BODY_REVERSE_SAFE)
+    ("大阳后调", is_signal_BIG_GREEN_RED_5),
+    ("长影反转", is_signal_NEW1_LONG_SHADOW_REVERSE),
+    ("缩量安全", is_signal_NEW5_SMALL_BODY_REVERSE_SAFE)
 ]
 
-# 用于保存给网页的结果
 web_results = []
+signal_counter = 0 # 信号计数器
 
 for sym in tqdm(symbols, desc="实盘扫描中"):
     try:
         df = get_klines(sym)
         if len(df) < 10: continue
         today = df.iloc[-1]
-        entry_price = today["open"]
-        current_price = get_price(sym)
+        entry_price, current_price = today["open"], get_price(sym)
         deviation = (entry_price - current_price) / entry_price
 
         if deviation >= MAX_DEVIATION or deviation <= MAX_PULLUP: continue
@@ -104,26 +108,30 @@ for sym in tqdm(symbols, desc="实盘扫描中"):
             stats = backtest(df, func)
             if not stats: continue
 
-            # 打印到控制台 (保持原有习惯)
-            print(f"\n📌 {sym} | {name} | 胜率: {stats['winrate']:.2f}% | 盈利: {stats['total_profit']:.2f}")
-
-            # 存储结果
+            # 命中信号
             web_results.append({
-                "symbol": sym,
-                "strategy": name,
-                "entry": entry_price,
-                "current": current_price,
-                "dev": f"{deviation*100:.2f}%",
-                "wr": f"{stats['winrate']:.2f}%",
-                "profit": f"{stats['total_profit']:.2f}",
-                "dd": f"{stats['max_dd']:.2f}",
-                "update": time.strftime("%H:%M:%S")
+                "symbol": sym, "strategy": name, "entry": entry_price,
+                "current": current_price, "dev": f"{deviation*100:.2f}%",
+                "wr": f"{stats['winrate']:.2f}%", "profit": f"{stats['total_profit']:.2f}",
+                "dd": f"{stats['max_dd']:.2f}", "time": time.strftime("%H:%M:%S")
             })
+            
+            signal_counter += 1
+            
+            # 存入本地文件
+            with open("data.json", "w", encoding="utf-8") as f:
+                json.dump(web_results, f, indent=4, ensure_ascii=False)
+
+            # 每积攒 5 个信号推送一次
+            if signal_counter >= 5:
+                push_to_web(f"Batch push: {signal_counter} signals")
+                signal_counter = 0 # 重置计数
+        
         time.sleep(0.1)
     except Exception: continue
 
-# 保存 JSON 文件用于网页同步
-with open("data.json", "w", encoding="utf-8") as f:
-    json.dump(web_results, f, indent=4, ensure_ascii=False)
+# 全部扫描结束后，强制推送一次剩余的信号（不足5个的部分）
+if signal_counter > 0:
+    push_to_web("Final push: remaining signals")
 
-print(f"\n✅ 扫描结束，共发现 {len(web_results)} 个信号，已更新 data.json")
+print("\n🏁 扫描任务全部完成！")
