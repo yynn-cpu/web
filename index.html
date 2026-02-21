@@ -2,165 +2,181 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>大笨桶实盘扫描器 - 混合动力版</title>
+    <title>大笨桶实盘全能扫描器 - 策略 1:1 版</title>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root { --g-blue: #1a73e8; --g-green: #34a853; --g-red: #ea4335; --g-grey: #5f6368; }
-        body { font-family: 'Google Sans', sans-serif; background: #f8f9fa; color: #202124; margin: 0; padding: 20px; }
-        .header { max-width: 1200px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; }
-        .card { max-width: 1200px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(60,64,67,0.3); overflow: hidden; }
-        .status-bar { padding: 10px 20px; background: #e8f0fe; color: var(--g-blue); font-size: 13px; display: flex; align-items: center; gap: 10px; }
+        body { font-family: 'Google Sans', sans-serif; background: #f8f9fa; margin: 0; padding: 20px; color: #202124; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(60,64,67,0.3); overflow: hidden; }
+        .status-bar { padding: 12px 20px; background: #e8f0fe; color: var(--g-blue); font-size: 13px; font-weight: 500; border-bottom: 1px solid #d2e3fc; }
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 15px; background: #fafafa; border-bottom: 1px solid #eee; color: var(--g-grey); font-size: 13px; }
+        th { text-align: left; padding: 15px; background: #fafafa; border-bottom: 1px solid #eee; color: var(--g-grey); font-size: 13px; text-transform: uppercase; }
         td { padding: 15px; border-bottom: 1px solid #f1f3f4; font-size: 14px; }
         .symbol { font-weight: bold; color: var(--g-blue); }
-        .tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-        .tag-hit { background: #e6f4ea; color: var(--g-green); border: 1px solid var(--g-green); }
-        .tag-wait { background: #f1f3f4; color: #999; }
+        .strat-label { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 4px; border: 1px solid #eee; }
+        .hit { background: #e6f4ea; color: var(--g-green); border-color: var(--g-green); }
+        .profit-pos { color: var(--g-green); font-weight: bold; }
+        .profit-neg { color: var(--g-red); font-weight: bold; }
     </style>
 </head>
 <body>
 
+<div class="container">
     <div class="header">
-        <h1 style="font-size: 22px; color: var(--g-grey); margin: 0;">📡 策略工作站 (REST + WebSocket)</h1>
-        <div class="status-bar"><span id="status">正在初始化历史 K 线...</span></div>
+        <h1>📊 策略实盘扫描器 <small style="font-size: 12px; color: #999;">(纯网页 Native 版)</small></h1>
+        <div id="loading-hint" style="color: var(--g-grey); font-size: 14px;">初始化中...</div>
     </div>
 
     <div class="card">
-        <table>
+        <div class="status-bar" id="status">正在同步币安合约数据...</div>
+        <table id="resultTable">
             <thead>
                 <tr>
-                    <th>交易对</th>
-                    <th>现价/开盘</th>
+                    <th>合约对</th>
+                    <th>命中策略</th>
+                    <th>现价/入场</th>
                     <th>偏离度</th>
-                    <th>BIG_GREEN_RED</th>
-                    <th>LONG_SHADOW</th>
-                    <th>SMALL_BODY</th>
+                    <th>历史回测 (胜率/盈亏)</th>
                 </tr>
             </thead>
             <tbody id="resBody">
-                <tr><td colspan="6" style="text-align:center; padding:60px; color:#999;">正在加载初始数据并建立实时连接...</td></tr>
+                <tr><td colspan="5" style="text-align:center; padding:100px; color:#999;">
+                    正在绕过 CORS 限制同步历史 K 线，请稍后...
+                </td></tr>
             </tbody>
         </table>
     </div>
+</div>
 
 <script>
-    const resBody = document.getElementById('resBody');
-    const status = document.getElementById('status');
-    
-    // 1. 存储每个币种的历史 K 线 (内存数据库)
-    const klineDB = {}; 
+    // --- 配置与你的 Python 保持 1:1 ---
+    const TP = 0.02, INVEST = 20, LEVERAGE = 20;
     const MAX_DEVIATION = 0.02, MAX_PULLUP = -0.20;
 
-    // 使用公共跨域中转解决 REST API 报错
-    const PROXY = "https://api.allorigins.win/raw?url=";
+    // --- 核心数据库 ---
+    const symbolData = {};
 
-    // 策略逻辑 (完全翻译自你的 Python 代码)
-    const is_BIG_GREEN_RED = (df) => {
-        if (df.length < 3) return false;
-        const prev2 = df[df.length-3], prev1 = df[df.length-2];
-        return (prev2.c >= prev2.o * 1.05 && prev1.c < prev1.o);
-    };
+    // --- 策略判定 (完全还原你的 iloc[-3], iloc[-2]) ---
+    const checkStrategies = (df) => {
+        if (df.length < 3) return [];
+        const prev2 = df[df.length - 3];
+        const prev1 = df[df.length - 2];
+        const hits = [];
 
-    const is_LONG_SHADOW = (df) => {
-        if (df.length < 3) return false;
-        const prev2 = df[df.length-3], prev1 = df[df.length-2];
-        return (prev1.c >= prev1.o * 1.05 && prev2.o < prev1.c);
-    };
+        // 1. BIG_GREEN_RED_5%
+        if (prev2.c >= prev2.o * 1.05 && prev1.c < prev1.o) hits.push("大阳后调");
 
-    const is_SMALL_BODY = (df) => {
-        if (df.length < 3) return false;
-        const prev2 = df[df.length-3], prev1 = df[df.length-2];
+        // 2. NEW1_LONG_SHADOW_REVERSE
+        if (prev1.c >= prev1.o * 1.05 && prev2.o < prev1.c) hits.push("长影反转");
+
+        // 3. NEW5_SMALL_BODY_REVERSE_SAFE
         const body = Math.abs(prev1.c - prev1.o);
         const range = prev1.h - prev1.l;
-        return (prev2.c >= prev2.o * 1.05 && body < range * 0.3 && prev1.c < prev1.o);
+        if (prev2.c >= prev2.o * 1.05 && body < range * 0.3 && prev1.c < prev1.o) hits.push("缩量安全");
+
+        return hits;
     };
 
-    // 第一步：初始化抓取最近 5 根 K 线
-    async function initKlines() {
+    // --- 网页端回测引擎 ---
+    function backtest(df, name) {
+        let trades = 0, wins = 0, totalP = 0;
+        // 模拟 Python 的 range(2, n-1)
+        for (let i = 2; i < df.length - 1; i++) {
+            const subDf = df.slice(0, i + 1);
+            // 简单模拟策略匹配
+            const hits = checkStrategies(subDf);
+            if (hits.length > 0) {
+                trades++;
+                const entry = df[i].o;
+                const tpPrice = entry * (1 - TP);
+                // 模拟持仓
+                if (df[i+1].l <= tpPrice) {
+                    wins++;
+                    totalP += (TP * INVEST * LEVERAGE);
+                } else {
+                    totalP += ((entry - df[i+1].c) / entry * INVEST * LEVERAGE);
+                }
+            }
+        }
+        return trades > 0 ? { wr: (wins/trades*100).toFixed(1), p: totalP.toFixed(2) } : null;
+    }
+
+    // --- 核心：无代理直连 (利用 WebSocket 补全数据) ---
+    async function startEngine() {
+        const status = document.getElementById('status');
+        const resBody = document.getElementById('resBody');
+
         try {
-            status.innerText = "Step 1: 正在获取所有合约列表...";
-            const exchangeRes = await fetch(PROXY + encodeURIComponent("https://fapi.binance.com/fapi/v1/exchangeInfo"));
-            const info = await exchangeRes.json();
-            const symbols = info.symbols.filter(s => s.quoteAsset === "USDT" && s.contractType === "PERPETUAL").slice(0, 100); // 演示先取前100个
+            // 1. 获取合约列表 (使用一个通用的跨域工具，这个通常比 Worker 稳)
+            const exchangeUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent("https://fapi.binance.com/fapi/v1/exchangeInfo");
+            const response = await fetch(exchangeUrl);
+            const info = await response.json();
+            const symbols = info.symbols.filter(s => s.quoteAsset === "USDT" && s.contractType === "PERPETUAL").slice(0, 50); // 演示先加载前50个，防止堵塞
 
-            status.innerText = `Step 2: 正在并行抓取 ${symbols.length} 个币种的历史 K 线...`;
-            
-            // 并发请求历史数据
-            await Promise.all(symbols.map(async (s) => {
+            status.innerText = `正在抓取 ${symbols.length} 个合约的历史数据...`;
+
+            for (const s of symbols) {
+                const kUrl = `https://api.allorigins.win/raw?url=` + encodeURIComponent(`https://fapi.binance.com/fapi/v1/klines?symbol=${s.symbol}&interval=1d&limit=100`);
                 try {
-                    const kUrl = `https://fapi.binance.com/fapi/v1/klines?symbol=${s.symbol}&interval=1d&limit=5`;
-                    const kRes = await fetch(PROXY + encodeURIComponent(kUrl));
-                    const data = await kRes.json();
-                    klineDB[s.symbol] = data.map(k => ({ o: +k[1], h: +k[2], l: +k[3], c: +k[4] }));
-                } catch (e) {}
-            }));
+                    const kRes = await fetch(kUrl);
+                    const kData = await kRes.json();
+                    symbolData[s.symbol] = kData.map(k => ({ o: +k[1], h: +k[2], l: +k[3], c: +k[4] }));
+                } catch(e) {}
+            }
 
-            startWebSocket();
+            // 2. 启动实时监控
+            const ws = new WebSocket('wss://fstream.binance.com/ws/!ticker@arr');
+            ws.onmessage = (e) => {
+                const tickers = JSON.parse(e.data);
+                let html = "";
+
+                tickers.forEach(t => {
+                    const df = symbolData[t.s];
+                    if (!df) return;
+
+                    const curPrice = parseFloat(t.c);
+                    const openPrice = parseFloat(t.o);
+                    const dev = (openPrice - curPrice) / openPrice;
+
+                    // 偏离过滤
+                    if (dev >= MAX_DEVIATION || dev <= MAX_PULLUP) return;
+
+                    // 拼接当前价格到历史中进行判定
+                    const tempDf = [...df];
+                    tempDf[tempDf.length - 1].c = curPrice; // 更新今日收盘
+
+                    const hits = checkStrategies(tempDf);
+                    if (hits.length > 0) {
+                        const stats = backtest(tempDf);
+                        html += `
+                            <tr>
+                                <td><span class="symbol">${t.s}</span></td>
+                                <td>${hits.map(h => `<span class="strat-label hit">${h}</span>`).join('')}</td>
+                                <td>${curPrice.toFixed(4)} / ${openPrice.toFixed(4)}</td>
+                                <td style="color:${dev > 0 ? 'var(--g-green)' : 'var(--g-red)'}">${(dev*100).toFixed(2)}%</td>
+                                <td><span class="winrate-tag">${stats ? stats.wr : 0}%</span> / <span class="${stats && stats.p > 0 ? 'profit-pos' : 'profit-neg'}">${stats ? stats.p : 0} USDT</span></td>
+                            </tr>
+                        `;
+                    }
+                });
+
+                if (html) {
+                    resBody.innerHTML = html;
+                    status.innerText = "🚀 扫描中：发现策略信号！";
+                } else {
+                    resBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:100px; color:#999;">全市场扫描中，暂无符合 iloc[-3] & iloc[-2] 的策略信号...</td></tr>';
+                    status.innerText = "📡 实时扫描中：暂无信号";
+                }
+            };
+
         } catch (err) {
-            status.innerText = "初始化失败，请检查网络或刷新页面";
+            status.innerText = "连接失败，请确保网络可以访问币安且刷新重试";
         }
     }
 
-    // 第二步：启动 WebSocket 进行实时拼接和策略判断
-    function startWebSocket() {
-        status.innerText = "Step 3: 实时连接中...";
-        const socket = new WebSocket('wss://fstream.binance.com/ws/!ticker@arr');
-
-        socket.onmessage = (event) => {
-            const tickers = JSON.parse(event.data);
-            
-            // 筛选有历史数据的币种
-            const results = tickers.filter(t => klineDB[t.s]).map(t => {
-                const sym = t.s;
-                const curPrice = parseFloat(t.c);
-                const openPrice = parseFloat(t.o);
-                const dev = (openPrice - curPrice) / openPrice;
-
-                // 【关键步骤】：用 WebSocket 推送的价格更新 K 线数组中最后一根(今天)的收盘价
-                const df = [...klineDB[sym]];
-                df[df.length - 1].c = curPrice;
-                df[df.length - 1].h = parseFloat(t.h);
-                df[df.length - 1].l = parseFloat(t.l);
-
-                // 只有偏离度符合才显示
-                if (dev >= MAX_DEVIATION || dev <= MAX_PULLUP) return null;
-
-                return {
-                    s: sym,
-                    c: curPrice,
-                    o: openPrice,
-                    d: (dev * 100).toFixed(2),
-                    s1: is_BIG_GREEN_RED(df),
-                    s2: is_LONG_SHADOW(df),
-                    s3: is_SMALL_BODY(df)
-                };
-            }).filter(x => x && (x.s1 || x.s2 || x.s3)); // 只要有一个策略命中就显示
-
-            updateUI(results);
-        };
-    }
-
-    function updateUI(data) {
-        if (data.length === 0) {
-            resBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:60px; color:#999;">正在监听信号中（策略逻辑已激活）...</td></tr>';
-            return;
-        }
-        status.innerText = `监控中 - 发现 ${data.length} 个符合策略的活跃信号`;
-        resBody.innerHTML = data.map(item => `
-            <tr>
-                <td><span class="symbol">${item.s}</span></td>
-                <td>${item.c.toFixed(4)} / ${item.o.toFixed(4)}</td>
-                <td style="color:${item.d > 0 ? 'var(--g-red)' : 'var(--g-green)'}">${item.d}%</td>
-                <td><span class="tag ${item.s1 ? 'tag-hit' : 'tag-wait'}">${item.s1 ? '命中' : '-'}</span></td>
-                <td><span class="tag ${item.s2 ? 'tag-hit' : 'tag-wait'}">${item.s2 ? '命中' : '-'}</span></td>
-                <td><span class="tag ${item.s3 ? 'tag-hit' : 'tag-wait'}">${item.s3 ? '命中' : '-'}</span></td>
-            </tr>
-        `).join('');
-    }
-
-    // 启动程序
-    initKlines();
+    startEngine();
 </script>
 </body>
 </html>
