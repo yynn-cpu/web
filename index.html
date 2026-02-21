@@ -6,49 +6,174 @@
     <title>大笨桶个人工作站</title>
     <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg" type="image/svg+xml">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-            line-height: 1.6;
-            color: #24292e; /* GitHub text color */
-            background-color: #ffffff; /* GitHub light background */
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            flex-direction: column;
             padding: 20px;
-            box-sizing: border-box;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 动态背景效果 */
+        body::before {
+            content: '';
+            position: fixed;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255,107,107,0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(119,107,255,0.3) 0%, transparent 50%);
+            animation: drift 15s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes drift {
+            0%, 100% {
+                transform: translate(0, 0);
+            }
+            50% {
+                transform: translate(30px, -30px);
+            }
         }
 
         .container {
             max-width: 800px;
             width: 100%;
-            padding: 30px;
-            border: 1px solid #e1e4e8; /* GitHub border color */
-            border-radius: 6px;
-            box-shadow: 0 1px 0 rgba(27,31,35,.04);
-            background-color: #f6f8fa; /* GitHub box background color */
+            padding: 50px 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             text-align: center;
+            z-index: 1;
+            animation: slideIn 0.8s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         h1 {
-            font-size: 2.5em;
-            color: #0366d6; /* GitHub link/primary color */
-            margin-bottom: 20px;
+            font-size: 3.5em;
+            margin-bottom: 15px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FF69B4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glow 3s ease-in-out infinite;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+            }
+            50% {
+                filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.9));
+            }
         }
 
         p {
-            font-size: 1.1em;
-            color: #586069; /* GitHub secondary text color */
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+            letter-spacing: 1px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .feature-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-item span {
+            display: block;
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+
+        .feature-item p {
+            font-size: 0.9em;
+            margin: 0;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            opacity: 0.7;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>大笨桶个人工作站</h1>
-        <img src="didi-hands.jpg" alt="弟弟的手" style="max-width: 100%; height: auto; margin: 20px 0; border-radius: 6px;">
-        <p>弟弟的手</p>
+        <h1>✨ 大笨桶工作站 ✨</h1>
+        <p>欢迎来到我的个人工作站</p>
+        
+        <div class="features">
+            <div class="feature-item">
+                <span>💻</span>
+                <p>代码开发</p>
+            </div>
+            <div class="feature-item">
+                <span>🚀</span>
+                <p>快速部署</p>
+            </div>
+            <div class="feature-item">
+                <span>🎨</span>
+                <p>设计创意</p>
+            </div>
+            <div class="feature-item">
+                <span>⚡</span>
+                <p>高性能</p>
+            </div>
         </div>
+
+        <div class="footer">
+            <p>✌️ 让代码创造奇迹 ✌️</p>
+        </div>
+    </div>
 </body>
 </html>
