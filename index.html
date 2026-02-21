@@ -2,95 +2,53 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>大笨桶 - 实时行情监控</title>
+    <title>大笨桶信号工作站</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@500&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; background: #121213; color: #eaeaeb; padding: 20px; }
-        .container { max-width: 800px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .online { background: #02c076; box-shadow: 0 0 5px #02c076; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { text-align: left; color: #848e9c; font-size: 12px; padding: 10px; }
-        td { padding: 15px 10px; border-bottom: 1px solid #2b2f36; font-family: 'Courier New', monospace; }
-        .symbol { font-weight: bold; color: #f0b90b; }
-        .price { color: #fff; }
-        .percent { font-weight: bold; }
-        .up { color: #02c076; }
-        .down { color: #cf304a; }
+        body { font-family: 'Google Sans', sans-serif; background: #f8f9fa; color: #202124; padding: 30px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(60,64,67,0.3); border-top: 4px solid #1a73e8; }
+        .sym { font-size: 22px; font-weight: bold; color: #1a73e8; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .tag { font-size: 12px; background: #e8f0fe; color: #1a73e8; padding: 4px 8px; border-radius: 6px; }
+        .metric { display: flex; justify-content: space-between; margin: 10px 0; font-size: 14px; border-bottom: 1px solid #f1f3f4; padding-bottom: 5px; }
+        .win { color: #34a853; font-weight: bold; }
+        .loss { color: #ea4335; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>📊 合约实时强信号 (24h > 5%)</h2>
-            <div>
-                <span id="dot" class="status-dot"></span>
-                <span id="status">正在连接币安数据源...</span>
-            </div>
-        </div>
-        <table id="marketTable">
-            <thead>
-                <tr>
-                    <th>交易对</th>
-                    <th>当前价格</th>
-                    <th>24h 涨幅</th>
-                </tr>
-            </thead>
-            <tbody id="tickerBody">
-                </tbody>
-        </table>
-    </div>
+    <h2 style="text-align:center; color:#5f6368;">📡 策略实盘信号看板</h2>
+    <div id="app" class="grid">正在读取扫描数据...</div>
 
     <script>
-        const tickerBody = document.getElementById('tickerBody');
-        const statusText = document.getElementById('status');
-        const dot = document.getElementById('dot');
+        async function load() {
+            try {
+                // 读取同目录下的 data.json
+                const r = await fetch('data.json?t=' + Date.now());
+                const data = await r.json();
+                const app = document.getElementById('app');
+                
+                if (data.length === 0) {
+                    app.innerHTML = "<div style='grid-column:1/-1;text-align:center;padding:50px;'>当前无符合条件的信号</div>";
+                    return;
+                }
 
-        // 1. 连接币安所有合约的 24h 统计流 (All Market Tickers)
-        // 这个接口每秒推送一次全场行情，且不限制浏览器 IP
-        const ws = new WebSocket('wss://fstream.binance.com/ws/!ticker@arr');
-
-        ws.onopen = () => {
-            statusText.innerText = "已连接 (实时更新中)";
-            dot.classList.add('online');
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            
-            // 2. 策略筛选：只看 USDT 结算，且涨幅 >= 5% 的币种
-            const signals = data.filter(item => 
-                item.s.endsWith('USDT') && parseFloat(item.P) >= 5
-            );
-
-            // 3. 排序：按涨幅从高到低
-            signals.sort((a, b) => parseFloat(b.P) - parseFloat(a.P));
-
-            // 4. 更新 UI
-            if (signals.length === 0) {
-                tickerBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#555;">暂无符合 5% 涨幅的强势币</td></tr>';
-            } else {
-                tickerBody.innerHTML = signals.map(s => `
-                    <tr>
-                        <td class="symbol">${s.s}</td>
-                        <td class="price">${parseFloat(s.c).toFixed(4)}</td>
-                        <td class="percent ${parseFloat(s.P) >= 0 ? 'up' : 'down'}">
-                            ${parseFloat(s.P) >= 0 ? '+' : ''}${s.P}%
-                        </td>
-                    </tr>
+                app.innerHTML = data.map(i => `
+                    <div class="card">
+                        <div class="sym">${i.symbol} <span class="tag">${i.strategy}</span></div>
+                        <div class="metric"><span>现价/入场</span> <span>${i.current} / ${i.entry}</span></div>
+                        <div class="metric"><span>偏离度</span> <span class="${parseFloat(i.dev) > 0 ? 'win' : 'loss'}">${i.dev}</span></div>
+                        <div class="metric"><span>历史胜率</span> <span class="win">${i.wr}</span></div>
+                        <div class="metric"><span>总盈利</span> <span class="win">${i.profit} USDT</span></div>
+                        <div class="metric"><span>最大回撤</span> <span class="loss">${i.dd}</span></div>
+                    </div>
                 `).join('');
+            } catch (e) {
+                document.getElementById('app').innerHTML = "等待 data.json 生成中...请先运行 Python 脚本";
             }
-        };
-
-        ws.onerror = (err) => {
-            statusText.innerText = "连接出错，请检查网络";
-            dot.classList.remove('online');
-        };
-
-        ws.onclose = () => {
-            statusText.innerText = "连接已断开，请刷新页面";
-            dot.classList.remove('online');
-        };
+        }
+        load();
+        // 每分钟自动刷新一次页面
+        setInterval(load, 60000);
     </script>
 </body>
 </html>
