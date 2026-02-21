@@ -2,95 +2,292 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>大笨桶 - 实时行情监控</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大笨桶实盘扫描器 - Google Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; background: #121213; color: #eaeaeb; padding: 20px; }
-        .container { max-width: 800px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .online { background: #02c076; box-shadow: 0 0 5px #02c076; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { text-align: left; color: #848e9c; font-size: 12px; padding: 10px; }
-        td { padding: 15px 10px; border-bottom: 1px solid #2b2f36; font-family: 'Courier New', monospace; }
-        .symbol { font-weight: bold; color: #f0b90b; }
-        .price { color: #fff; }
-        .percent { font-weight: bold; }
-        .up { color: #02c076; }
-        .down { color: #cf304a; }
+        :root {
+            --google-blue: #1a73e8;
+            --google-red: #ea4335;
+            --google-green: #34a853;
+            --google-grey: #5f6368;
+            --bg-color: #ffffff;
+            --card-shadow: 0 1px 2px 0 rgba(60,64,67,.30), 0 1px 3px 1px rgba(60,64,67,.15);
+        }
+
+        body {
+            font-family: 'Google Sans', Roboto, Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #202124;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            max-width: 1100px;
+            margin: 0 auto 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--google-grey);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            background: #e8f0fe;
+            color: var(--google-blue);
+            border: 1px solid #d2e3fc;
+        }
+
+        .main-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: var(--bg-color);
+            border-radius: 8px;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 4px;
+            width: 100%;
+            background: #e8eaed;
+            position: relative;
+        }
+
+        #progress-inner {
+            height: 100%;
+            width: 0%;
+            background: var(--google-blue);
+            transition: width 0.3s;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #fff;
+            padding: 16px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--google-grey);
+            border-bottom: 1px solid #ebebeb;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #f1f3f4;
+            font-size: 14px;
+        }
+
+        tr:hover { background-color: #f1f3f4; }
+
+        .symbol-tag {
+            font-weight: 700;
+            color: var(--google-blue);
+        }
+
+        .strategy-name {
+            font-size: 12px;
+            background: #f1f3f4;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--google-grey);
+        }
+
+        .winrate {
+            color: var(--google-green);
+            font-weight: 500;
+        }
+
+        .deviation {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 13px;
+        }
+
+        .btn-scan {
+            background-color: var(--google-blue);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .btn-scan:disabled { background-color: #ccc; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>📊 合约实时强信号 (24h > 5%)</h2>
-            <div>
-                <span id="dot" class="status-dot"></span>
-                <span id="status">正在连接币安数据源...</span>
-            </div>
-        </div>
-        <table id="marketTable">
+
+    <div class="header">
+        <h1>🔍 实盘策略扫描器</h1>
+        <div id="status" class="status-badge">就绪</div>
+        <button class="btn-scan" id="scanBtn" onclick="startScan()">立即扫描</button>
+    </div>
+
+    <div class="main-container">
+        <div class="progress-bar"><div id="progress-inner"></div></div>
+        <table>
             <thead>
                 <tr>
-                    <th>交易对</th>
-                    <th>当前价格</th>
-                    <th>24h 涨幅</th>
+                    <th>合约</th>
+                    <th>策略</th>
+                    <th>现价/入场</th>
+                    <th>偏离</th>
+                    <th>历史胜率</th>
+                    <th>总盈利</th>
+                    <th>最大回撤</th>
                 </tr>
             </thead>
-            <tbody id="tickerBody">
-                </tbody>
+            <tbody id="resultBody">
+                <tr><td colspan="7" style="text-align:center; color:#999; padding:40px;">点击“立即扫描”开始实时分析行情</td></tr>
+            </tbody>
         </table>
     </div>
 
-    <script>
-        const tickerBody = document.getElementById('tickerBody');
-        const statusText = document.getElementById('status');
-        const dot = document.getElementById('dot');
+<script>
+    const TP = 0.02;
+    const INVEST = 20;
+    const LEVERAGE = 20;
+    const MAX_DEVIATION = 0.02;
+    const MAX_PULLUP = -0.20;
 
-        // 1. 连接币安所有合约的 24h 统计流 (All Market Tickers)
-        // 这个接口每秒推送一次全场行情，且不限制浏览器 IP
-        const ws = new WebSocket('wss://fstream.binance.com/ws/!ticker@arr');
-
-        ws.onopen = () => {
-            statusText.innerText = "已连接 (实时更新中)";
-            dot.classList.add('online');
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            
-            // 2. 策略筛选：只看 USDT 结算，且涨幅 >= 5% 的币种
-            const signals = data.filter(item => 
-                item.s.endsWith('USDT') && parseFloat(item.P) >= 5
-            );
-
-            // 3. 排序：按涨幅从高到低
-            signals.sort((a, b) => parseFloat(b.P) - parseFloat(a.P));
-
-            // 4. 更新 UI
-            if (signals.length === 0) {
-                tickerBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#555;">暂无符合 5% 涨幅的强势币</td></tr>';
-            } else {
-                tickerBody.innerHTML = signals.map(s => `
-                    <tr>
-                        <td class="symbol">${s.s}</td>
-                        <td class="price">${parseFloat(s.c).toFixed(4)}</td>
-                        <td class="percent ${parseFloat(s.P) >= 0 ? 'up' : 'down'}">
-                            ${parseFloat(s.P) >= 0 ? '+' : ''}${s.P}%
-                        </td>
-                    </tr>
-                `).join('');
+    // 策略逻辑翻译
+    const strategies = [
+        {
+            name: "BIG_GREEN_RED_5%",
+            check: (df) => {
+                const p2 = df[df.length-3], p1 = df[df.length-2];
+                return (p2.c >= p2.o * 1.05 && p1.c < p1.o);
             }
-        };
+        },
+        {
+            name: "LONG_SHADOW_REVERSE",
+            check: (df) => {
+                const p2 = df[df.length-3], p1 = df[df.length-2];
+                return (p1.c >= p1.o * 1.05 && p2.o < p1.c);
+            }
+        },
+        {
+            name: "SMALL_BODY_SAFE",
+            check: (df) => {
+                const p2 = df[df.length-3], p1 = df[df.length-2];
+                const body = Math.abs(p1.c - p1.o);
+                const range = p1.h - p1.l;
+                return (p2.c >= p2.o * 1.05 && body < range * 0.3 && p1.c < p1.o);
+            }
+        }
+    ];
 
-        ws.onerror = (err) => {
-            statusText.innerText = "连接出错，请检查网络";
-            dot.classList.remove('online');
-        };
+    async function fetchKlines(symbol) {
+        const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=300`);
+        const data = await r.json();
+        return data.map(k => ({ o: parseFloat(k[1]), h: parseFloat(k[2]), l: parseFloat(k[3]), c: parseFloat(k[4]) }));
+    }
 
-        ws.onclose = () => {
-            statusText.innerText = "连接已断开，请刷新页面";
-            dot.classList.remove('online');
+    function backtest(df, checkFunc) {
+        let trades = [];
+        for (let i = 10; i < df.length - 1; i++) {
+            if (!checkFunc(df.slice(0, i + 1))) continue;
+            let entry = df[i].o;
+            let tpPrice = entry * (1 - TP);
+            let profit = 0, max_dd = 0;
+            let exited = false;
+
+            for (let j = i; j < df.length; j++) {
+                let k = df[j];
+                max_dd = Math.max(max_dd, (k.h - entry) / entry * INVEST * LEVERAGE);
+                if (k.l <= tpPrice) {
+                    profit = (entry - tpPrice) / entry * INVEST * LEVERAGE;
+                    exited = true; break;
+                }
+            }
+            if (!exited) profit = (entry - df[df.length - 1].c) / entry * INVEST * LEVERAGE;
+            trades.push({ profit, max_dd });
+        }
+        if (trades.length === 0) return null;
+        const wins = trades.filter(t => t.profit > 0).length;
+        return {
+            count: trades.length,
+            winrate: (wins / trades.length * 100).toFixed(2),
+            totalProfit: trades.reduce((a, b) => a + b.profit, 0).toFixed(2),
+            maxDD: Math.max(...trades.map(t => t.max_dd)).toFixed(2)
         };
-    </script>
+    }
+
+    async function startScan() {
+        const btn = document.getElementById('scanBtn');
+        const status = document.getElementById('status');
+        const progress = document.getElementById('progress-inner');
+        const tbody = document.getElementById('resultBody');
+        
+        btn.disabled = true;
+        tbody.innerHTML = "";
+        
+        try {
+            status.innerText = "获取交易对...";
+            const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
+            const info = await res.json();
+            const symbols = info.symbols.filter(s => s.contractType === "PERPETUAL" && s.quoteAsset === "USDT").map(s => s.symbol);
+            
+            let found = 0;
+            for (let i = 0; i < symbols.length; i++) {
+                const sym = symbols[i];
+                progress.style.width = ((i / symbols.length) * 100) + "%";
+                status.innerText = `扫描中: ${sym} (${i}/${symbols.length})`;
+
+                try {
+                    const df = await fetchKlines(sym);
+                    const entryPrice = df[df.length - 1].o;
+                    const currentPrice = df[df.length - 1].c;
+                    const deviation = (entryPrice - currentPrice) / entry_price; // 修正逻辑
+
+                    // 偏离过滤
+                    const dev = (entryPrice - currentPrice) / entryPrice;
+                    if (dev >= MAX_DEVIATION || dev <= MAX_PULLUP) continue;
+
+                    for (let strat of strategies) {
+                        if (strat.check(df)) {
+                            const stats = backtest(df, strat.check);
+                            if (stats) {
+                                found++;
+                                tbody.innerHTML += `
+                                    <tr>
+                                        <td><span class="symbol-tag">${sym}</span></td>
+                                        <td><span class="strategy-name">${strat.name}</span></td>
+                                        <td>${currentPrice.toFixed(4)} / ${entryPrice.toFixed(4)}</td>
+                                        <td class="deviation">${(dev * 100).toFixed(2)}%</td>
+                                        <td class="winrate">${stats.winrate}%</td>
+                                        <td style="color:var(--google-green)">${stats.totalProfit}</td>
+                                        <td style="color:var(--google-red)">${stats.maxDD}</td>
+                                    </tr>
+                                `;
+                            }
+                        }
+                    }
+                } catch (e) { console.error(e); }
+            }
+            status.innerText = `完成！发现 ${found} 个信号`;
+        } catch (e) { status.innerText = "错误: " + e.message; }
+        
+        btn.disabled = false;
+        progress.style.width = "0%";
+    }
+</script>
 </body>
 </html>
