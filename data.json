@@ -1,0 +1,57 @@
+[
+    {
+        "symbol": "ETCUSDT",
+        "strategy": "长影反转",
+        "entry": 8.745,
+        "current": 9.701,
+        "dev": "-10.93%",
+        "wr": "100.00%",
+        "profit": "152.00",
+        "dd": "54.72",
+        "time": "19:28:59"
+    },
+    {
+        "symbol": "THETAUSDT",
+        "strategy": "长影反转",
+        "entry": 0.2024,
+        "current": 0.2079,
+        "dev": "-2.72%",
+        "wr": "100.00%",
+        "profit": "224.00",
+        "dd": "148.75",
+        "time": "19:29:32"
+    },
+    {
+        "symbol": "SNXUSDT",
+        "strategy": "长影反转",
+        "entry": 0.392,
+        "current": 0.385,
+        "dev": "1.79%",
+        "wr": "100.00%",
+        "profit": "280.00",
+        "dd": "206.23",
+        "time": "19:29:52"
+    },
+    {
+        "symbol": "AXSUSDT",
+        "strategy": "长影反转",
+        "entry": 1.326,
+        "current": 1.349,
+        "dev": "-1.73%",
+        "wr": "94.87%",
+        "profit": "-35.83",
+        "dd": "972.87",
+        "time": "19:30:40"
+    },
+    {
+        "symbol": "FLOWUSDT",
+        "strategy": "长影反转",
+        "entry": 0.03816,
+        "current": 0.03834,
+        "dev": "-0.47%",
+        "wr": "100.00%",
+        "profit": "160.00",
+        "dd": "123.08",
+        "time": "19:32:05"
+    }
+]
