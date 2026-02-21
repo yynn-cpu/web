@@ -2,274 +2,117 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大笨桶实盘扫描器 - Google Edition</title>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <title>大笨桶实盘扫描工作站 - 实时版</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --g-blue: #1a73e8;
-            --g-red: #ea4335;
             --g-green: #34a853;
+            --g-red: #ea4335;
             --g-grey: #5f6368;
-            --white: #ffffff;
-            --border: #e0e0e0;
+            --bg: #f8f9fa;
         }
-
-        body {
-            font-family: 'Google Sans', Roboto, Arial, sans-serif;
-            background-color: #f8f9fa;
-            color: #202124;
-            margin: 0;
-            padding: 24px;
-        }
-
-        .header-container {
-            max-width: 1100px;
-            margin: 0 auto 24px auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-container h1 {
-            font-size: 22px;
-            font-weight: 400;
-            color: var(--g-grey);
-            margin: 0;
-        }
-
-        .btn-scan {
-            background-color: var(--g-blue);
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
-            transition: background 0.2s;
-        }
-
-        .btn-scan:hover { background-color: #1765cc; }
-        .btn-scan:disabled { background-color: #bdc1c6; cursor: not-allowed; }
-
-        .main-card {
-            max-width: 1100px;
-            margin: 0 auto;
-            background: var(--white);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .progress-container {
-            height: 4px;
-            background: #e8eaed;
-            width: 100%;
-        }
-
-        #progress-bar {
-            height: 100%;
-            width: 0%;
-            background: var(--g-blue);
-            transition: width 0.3s;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            text-align: left;
-            padding: 16px;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--g-grey);
-            border-bottom: 1px solid var(--border);
-            background: #fafafa;
-        }
-
-        td {
-            padding: 16px;
-            border-bottom: 1px solid #f1f3f4;
-            font-size: 14px;
-            color: #3c4043;
-        }
-
-        .symbol-name { font-weight: 700; color: var(--g-blue); }
-        .strat-badge { 
-            background: #f1f3f4; 
-            padding: 4px 8px; 
-            border-radius: 4px; 
-            font-size: 12px; 
-            color: var(--g-grey);
-        }
-        .text-green { color: var(--g-green); font-weight: 500; }
-        .text-red { color: var(--g-red); font-weight: 500; }
-        .status-text { font-size: 13px; color: var(--g-grey); margin-left: 10px; }
+        body { font-family: 'Google Sans', sans-serif; background: var(--bg); color: #202124; margin: 0; padding: 20px; }
+        .header { max-width: 1000px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; }
+        .card { max-width: 1000px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(60,64,67,0.3); overflow: hidden; }
+        .status-bar { padding: 10px 20px; background: #e8f0fe; color: var(--g-blue); font-size: 13px; display: flex; align-items: center; gap: 10px; }
+        .dot { width: 8px; height: 8px; background: #ccc; border-radius: 50%; }
+        .dot.active { background: var(--g-green); box-shadow: 0 0 5px var(--g-green); }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 16px; background: #fff; border-bottom: 1px solid #eee; color: var(--g-grey); font-size: 14px; }
+        td { padding: 16px; border-bottom: 1px solid #f1f3f4; font-size: 14px; }
+        .symbol { font-weight: bold; color: var(--g-blue); }
+        .percent { font-weight: bold; }
+        .up { color: var(--g-green); }
     </style>
 </head>
 <body>
 
-    <div class="header-container">
-        <h1>📊 实盘扫描工作站 <span id="status" class="status-text">就绪</span></h1>
-        <button class="btn-scan" id="scanBtn" onclick="startScan()">立即扫描</button>
+    <div class="header">
+        <h1 style="font-size: 22px; color: var(--g-grey); margin: 0;">📊 实盘实时扫描 (WebSocket)</h1>
+        <div class="status-bar">
+            <div id="dot" class="dot"></div>
+            <span id="status">正在初始化行情链接...</span>
+        </div>
     </div>
 
-    <div class="main-card">
-        <div class="progress-container"><div id="progress-bar"></div></div>
+    <div class="card">
         <table>
             <thead>
                 <tr>
                     <th>交易对</th>
-                    <th>命中策略</th>
-                    <th>现价 / 入场</th>
-                    <th>当前偏离</th>
-                    <th>历史胜率</th>
-                    <th>历史总盈亏</th>
+                    <th>当前价格</th>
+                    <th>24h 涨跌幅</th>
+                    <th>偏离度 (实时)</th>
+                    <th>策略状态</th>
                 </tr>
             </thead>
             <tbody id="resBody">
-                <tr><td colspan="6" style="text-align:center; padding:60px; color:#9aa0a6;">点击上方按钮，开始全市场扫描分析...</td></tr>
+                <tr><td colspan="5" style="text-align:center; padding:60px; color:#999;">正在等待币安数据流，符合策略的信号将自动弹出...</td></tr>
             </tbody>
         </table>
     </div>
 
 <script>
-    // 核心参数 (与你的 Python 代码完全一致)
-    const TP = 0.02;
-    const INVEST = 20;
-    const LEVERAGE = 20;
-    const MAX_DEVIATION = 0.02;      // 偏离上限 +2%
-    const MAX_PULLUP = -0.20;        // 偏离下限 -20%
-    const PROXY_URL = "https://bitter-dream-fe9c.2xiaxiaxia.workers.dev"; // 你的中转地址
+    const resBody = document.getElementById('resBody');
+    const status = document.getElementById('status');
+    const dot = document.getElementById('dot');
 
-    // 策略逻辑定义
-    const STRATEGIES = [
-        {
-            name: "BIG_GREEN_RED_5%",
-            check: (df) => {
-                const p2 = df[df.length-3], p1 = df[df.length-2];
-                return (p2.c >= p2.o * 1.05 && p1.c < p1.o);
-            }
-        },
-        {
-            name: "LONG_SHADOW_REVERSE",
-            check: (df) => {
-                const p2 = df[df.length-3], p1 = df[df.length-2];
-                return (p1.c >= p1.o * 1.05 && p2.o < p1.c);
-            }
-        },
-        {
-            name: "SMALL_BODY_SAFE",
-            check: (df) => {
-                const p2 = df[df.length-3], p1 = df[df.length-2];
-                const body = Math.abs(p1.c - p1.o);
-                const range = p1.h - p1.l;
-                return (p2.c >= p2.o * 1.05 && body < (range * 0.3) && p1.c < p1.o);
-            }
+    // 策略参数
+    const TARGET_UP = 5.0; // 涨幅超过 5% 开始监控
+
+    // 建立 WebSocket 连接 (订阅全场 24h 统计数据)
+    // 这种方式不需要中转站，直接从浏览器连接币安
+    const socket = new WebSocket('wss://fstream.binance.com/ws/!ticker@arr');
+
+    socket.onopen = () => {
+        status.innerText = "已实时连接币安行情流";
+        dot.classList.add('active');
+    };
+
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        // 过滤出符合你逻辑的币种：USDT 结算且涨幅 >= 5%
+        const signals = data.filter(item => 
+            item.s.endsWith('USDT') && parseFloat(item.P) >= TARGET_UP
+        );
+
+        // 按涨幅排序
+        signals.sort((a, b) => parseFloat(b.P) - parseFloat(a.P));
+
+        if (signals.length === 0) {
+            resBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:60px; color:#999;">当前市场平淡，暂无涨幅 > 5% 的强势合约</td></tr>';
+            return;
         }
-    ];
 
-    async function startScan() {
-        const btn = document.getElementById('scanBtn');
-        const status = document.getElementById('status');
-        const progress = document.getElementById('progress-bar');
-        const tbody = document.getElementById('resBody');
-        
-        btn.disabled = true;
-        tbody.innerHTML = "";
-        
-        try {
-            status.innerText = "🔍 正在连接币安 API...";
-            // 1. 获取所有合约交易对
-            const infoRes = await fetch(`${PROXY_URL}/fapi/v1/exchangeInfo`);
-            const info = await infoRes.json();
-            const symbols = info.symbols
-                .filter(s => s.contractType === "PERPETUAL" && s.quoteAsset === "USDT")
-                .map(s => s.symbol);
-            
-            let foundCount = 0;
+        // 更新界面
+        resBody.innerHTML = signals.map(s => {
+            const currentPrice = parseFloat(s.c);
+            const openPrice = parseFloat(s.o);
+            const deviation = ((openPrice - currentPrice) / openPrice * 100).toFixed(2);
 
-            // 2. 遍历扫描
-            for (let i = 0; i < symbols.length; i++) {
-                const sym = symbols[i];
-                // 更新进度条
-                progress.style.width = ((i / symbols.length) * 100) + "%";
-                status.innerText = `正在扫描: ${sym} (${i}/${symbols.length})`;
+            return `
+                <tr>
+                    <td><span class="symbol">${s.s}</span></td>
+                    <td>${currentPrice.toFixed(4)}</td>
+                    <td class="percent up">+${s.P}%</td>
+                    <td>${deviation}%</td>
+                    <td><span style="background:#e6f4ea; color:#137333; padding:2px 8px; border-radius:4px; font-size:12px;">符合强势特征</span></td>
+                </tr>
+            `;
+        }).join('');
+    };
 
-                try {
-                    // 获取 K 线数据 (1d, 100条足以回测)
-                    const kRes = await fetch(`${PROXY_URL}/fapi/v1/klines?symbol=${sym}&interval=1d&limit=100`);
-                    const rawK = await kRes.json();
-                    
-                    // 格式化数据并强制转换为数字类型
-                    const df = rawK.map(k => ({ 
-                        o: parseFloat(k[1]), h: parseFloat(k[2]), l: parseFloat(k[3]), c: parseFloat(k[4]) 
-                    }));
+    socket.onerror = (err) => {
+        status.innerText = "连接出错，请检查网络是否能访问币安";
+        dot.classList.remove('active');
+    };
 
-                    if (df.length < 10) continue;
-
-                    const entryPrice = df[df.length - 1].o; // 今日开盘价
-                    const currentPrice = df[df.length - 1].c; // 当前现价
-                    const deviation = (entryPrice - currentPrice) / entryPrice;
-
-                    // 策略过滤：偏离过大或过小直接跳过
-                    if (deviation >= MAX_DEVIATION || deviation <= MAX_PULLUP) continue;
-
-                    // 检查所有策略
-                    for (let strat of STRATEGIES) {
-                        if (strat.check(df)) {
-                            // 执行即时回测逻辑
-                            let trades = 0, wins = 0, totalProfit = 0;
-                            
-                            for (let j = 10; j < df.length - 1; j++) {
-                                if (strat.check(df.slice(0, j + 1))) {
-                                    trades++;
-                                    let entry = df[j].o;
-                                    let targetTp = entry * (1 - TP);
-                                    
-                                    // 模拟次日走势
-                                    if (df[j+1].l <= targetTp) {
-                                        wins++;
-                                        totalProfit += (TP * INVEST * LEVERAGE);
-                                    } else {
-                                        totalProfit += ((entry - df[j+1].c) / entry * INVEST * LEVERAGE);
-                                    }
-                                }
-                            }
-
-                            if (trades > 0) {
-                                foundCount++;
-                                tbody.innerHTML += `
-                                    <tr>
-                                        <td><span class="symbol-name">${sym}</span></td>
-                                        <td><span class="strat-badge">${strat.name}</span></td>
-                                        <td>${currentPrice.toFixed(4)} / ${entryPrice.toFixed(4)}</td>
-                                        <td>${(deviation * 100).toFixed(2)}%</td>
-                                        <td class="text-green">${((wins/trades)*100).toFixed(1)}%</td>
-                                        <td class="${totalProfit >= 0 ? 'text-green' : 'text-red'}">${totalProfit.toFixed(2)} USDT</td>
-                                    </tr>
-                                `;
-                            }
-                        }
-                    }
-                } catch (err) { console.warn(`跳过 ${sym}: 数据请求失败`); }
-            }
-            
-            status.innerText = foundCount > 0 ? `✅ 扫描完成，发现 ${foundCount} 个信号` : "🍵 扫描完成，暂无符合信号";
-            if(foundCount === 0) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:60px; color:#9aa0a6;">当前行情未触发任何策略信号</td></tr>';
-
-        } catch (e) {
-            status.innerText = "❌ 扫描出错: 请检查网络连接或中转站";
-            console.error(e);
-        }
-        
-        btn.disabled = false;
-        progress.style.width = "0%";
-    }
+    socket.onclose = () => {
+        status.innerText = "连接已关闭，请刷新重试";
+        dot.classList.remove('active');
+    };
 </script>
 </body>
 </html>
