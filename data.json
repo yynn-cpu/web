@@ -118,5 +118,65 @@
         "dd": "284.75",
         "hold": "3.21",
         "time": "19:58:56"
+    },
+    {
+        "symbol": "ZROUSDT",
+        "strategy": "长影反转",
+        "entry": 1.674,
+        "current": 1.7156,
+        "dev": "-2.49%",
+        "wr": "100.00%",
+        "profit": "264.00",
+        "dd": "202.02",
+        "hold": "2.09",
+        "time": "19:59:21"
+    },
+    {
+        "symbol": "RENDERUSDT",
+        "strategy": "长影反转",
+        "entry": 1.504,
+        "current": 1.488,
+        "dev": "1.06%",
+        "wr": "100.00%",
+        "profit": "264.00",
+        "dd": "384.37",
+        "hold": "4.06",
+        "time": "19:59:22"
+    },
+    {
+        "symbol": "BRETTUSDT",
+        "strategy": "长影反转",
+        "entry": 0.00787,
+        "current": 0.00786,
+        "dev": "0.13%",
+        "wr": "100.00%",
+        "profit": "384.00",
+        "dd": "181.89",
+        "hold": "1.79",
+        "time": "19:59:34"
+    },
+    {
+        "symbol": "RPLUSDT",
+        "strategy": "长影反转",
+        "entry": 2.408,
+        "current": 2.407,
+        "dev": "0.04%",
+        "wr": "97.96%",
+        "profit": "208.85",
+        "dd": "308.88",
+        "hold": "3.63",
+        "time": "19:59:46"
+    },
+    {
+        "symbol": "COWUSDT",
+        "strategy": "长影反转",
+        "entry": 0.2102,
+        "current": 0.2084,
+        "dev": "0.86%",
+        "wr": "100.00%",
+        "profit": "344.00",
+        "dd": "211.72",
+        "hold": "2.65",
+        "time": "20:00:22"
     }
 ]
