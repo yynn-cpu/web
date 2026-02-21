@@ -25,18 +25,26 @@
                 if(!data.length) { app.innerHTML = "等待信号中..."; return; }
                 
                 // 倒序排列，最新的信号排在最前面
-                app.innerHTML = data.reverse().map(i => `
+                app.innerHTML = data.reverse().map(i => {
+                    const devVal = parseFloat(i.dev);
+                    const devClass = isNaN(devVal) ? 'dev-neutral' : (devVal < 0 ? 'dev-negative' : (devVal > 0 ? 'dev-positive' : 'dev-neutral'));
+                    return `
                     <div class="card">
                         <div class="update-time">${i.time} 更新</div>
-                        <div class="sym">${i.symbol} <span class="tag">${i.strategy}</span></div>
+                        <div class="card-header">
+                            <div class="left">
+                                <div class="sym">${i.symbol} <span class="tag">${i.strategy}</span></div>
+                            </div>
+                            <div class="dev-pill ${devClass}">${i.dev || '—'}</div>
+                        </div>
                         <div class="meaning">💡 ${meanings[i.strategy] || '信号解析中...'}</div>
                         <div class="metric"><span>现价 / 入场</span> <span>${i.current} / ${parseFloat(i.entry).toFixed(4)}</span></div>
-                        <div class="metric"><span>平均持仓</span> <span style="color:var(--primary)">${i.hold} 天</span></div>
+                        <div class="metric"><span>平均持仓</span> <span class="hold-days">${i.hold} 天</span></div>
                         <div class="metric"><span>历史胜率</span> <span class="win">${i.wr}</span></div>
                         <div class="metric"><span>历史盈亏</span> <span class="win">${i.profit} USDT</span></div>
                         <div class="metric"><span>最大回撤</span> <span class="loss">${i.dd} USDT</span></div>
                     </div>
-                `).join('');
+                `}).join('');
             } catch(e) {}
         }
         setInterval(load, 15000); // 15秒刷新一次网页
