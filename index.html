@@ -3,177 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大笨桶个人工作站</title>
-    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg" type="image/svg+xml">
+    <title>大笨桶信号工作站</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #fff;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* 动态背景效果 */
-        body::before {
-            content: '';
-            position: fixed;
-            width: 200%;
-            height: 200%;
-            top: -50%;
-            left: -50%;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(255,107,107,0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(119,107,255,0.3) 0%, transparent 50%);
-            animation: drift 15s ease-in-out infinite;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        @keyframes drift {
-            0%, 100% {
-                transform: translate(0, 0);
-            }
-            50% {
-                transform: translate(30px, -30px);
-            }
-        }
-
-        .container {
-            max-width: 800px;
-            width: 100%;
-            padding: 50px 40px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            text-align: center;
-            z-index: 1;
-            animation: slideIn 0.8s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        h1 {
-            font-size: 3.5em;
-            margin-bottom: 15px;
-            font-weight: 700;
-            background: linear-gradient(45deg, #FFD700, #FFA500, #FF69B4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: glow 3s ease-in-out infinite;
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-        }
-
-        @keyframes glow {
-            0%, 100% {
-                filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
-            }
-            50% {
-                filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.9));
-            }
-        }
-
-        p {
-            font-size: 1.2em;
-            margin-bottom: 30px;
-            opacity: 0.9;
-            letter-spacing: 1px;
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 30px;
-        }
-
-        .feature-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .feature-item:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        .feature-item span {
-            display: block;
-            font-size: 2em;
-            margin-bottom: 8px;
-        }
-
-        .feature-item p {
-            font-size: 0.9em;
-            margin: 0;
-        }
-
-        .footer {
-            margin-top: 30px;
-            font-size: 0.9em;
-            opacity: 0.7;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            padding-top: 20px;
-        }
+        body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background-color: #f6f8fa; margin: 0; padding: 20px; color: #24292e; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; border: 1px solid #d0d7de; border-radius: 6px; overflow: hidden; }
+        .header { padding: 16px; background: #f6f8fa; border-bottom: 1px solid #d0d7de; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 16px; margin: 0; }
+        .update-time { font-size: 12px; color: #57606a; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; padding: 12px; background: #f6f8fa; border-bottom: 1px solid #d0d7de; color: #57606a; }
+        td { padding: 12px; border-bottom: 1px solid #d0d7de; }
+        tr:hover { background-color: #f6f8fa; }
+        .symbol { font-weight: 600; color: #0969da; }
+        .winrate { font-weight: bold; color: #1a7f37; }
+        .empty { padding: 40px; text-align: center; color: #57606a; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>✨ 大笨桶工作站 ✨</h1>
-        <p>欢迎来到我的个人工作站</p>
-        
-        <div class="features">
-            <div class="feature-item">
-                <span>💻</span>
-                <p>代码开发</p>
-            </div>
-            <div class="feature-item">
-                <span>🚀</span>
-                <p>快速部署</p>
-            </div>
-            <div class="feature-item">
-                <span>🎨</span>
-                <p>设计创意</p>
-            </div>
-            <div class="feature-item">
-                <span>⚡</span>
-                <p>高性能</p>
-            </div>
+        <div class="header">
+            <h1>📡 实盘合约扫描结果</h1>
+            <span id="update-time" class="update-time">等待扫描...</span>
         </div>
-
-        <div class="footer">
-            <p>✌️ 让代码创造奇迹 ✌️</p>
-        </div>
+        <table id="signal-table">
+            <thead>
+                <tr>
+                    <th>币种</th><th>策略</th><th>现价</th><th>偏离</th><th>回测胜率</th><th>历史盈利</th>
+                </tr>
+            </thead>
+            <tbody id="content">
+                <tr><td colspan="6" class="empty">正在获取最新信号...</td></tr>
+            </tbody>
+        </table>
     </div>
+
+    <script>
+        async function fetchResults() {
+            try {
+                const response = await fetch('results.json?t=' + Date.now());
+                const data = await response.json();
+                const container = document.getElementById('content');
+                
+                if (data.length === 0) {
+                    container.innerHTML = '<tr><td colspan="6" class="empty">当前无符合条件的有效信号</td></tr>';
+                    return;
+                }
+
+                document.getElementById('update-time').innerText = "更新于: " + data[0].update_time;
+                let rows = "";
+                data.forEach(item => {
+                    rows += `<tr>
+                        <td class="symbol">${item.symbol}</td>
+                        <td>${item.strategy}</td>
+                        <td>${item.current}</td>
+                        <td>${item.deviation}</td>
+                        <td class="winrate">${item.winrate}</td>
+                        <td>${item.profit} USDT</td>
+                    </tr>`;
+                });
+                container.innerHTML = rows;
+            } catch (e) {
+                document.getElementById('content').innerHTML = '<tr><td colspan="6" class="empty">暂无数据 (等待首次扫描完成)</td></tr>';
+            }
+        }
+        fetchResults();
+        setInterval(fetchResults, 60000); // 每分钟自动刷新页面数据
+    </script>
 </body>
 </html>
