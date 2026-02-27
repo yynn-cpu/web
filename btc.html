@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BTC 地址实时统计</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="site-wrapper">
+    <div id="app">
+      <div class="hero">
+        <div class="hero-title">大笨桶追踪监控系统</div>
+        <div class="hero-subtitle">BTC 地址实时统计与人民币换算</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="left">
+            <div class="sym">💱 总览</div>
+            <span class="tag">实时汇总</span>
+          </div>
+          <span class="update-time" id="last-update"></span>
+        </div>
+        <div class="toolbar">
+          <button id="refresh" class="tag" style="border:none; cursor:pointer">刷新</button>
+          <span id="status" class="update-time"></span>
+        </div>
+        <div class="grid" id="summary-grid">
+          <div class="card">
+            <div class="sym">₿ 总BTC</div>
+            <div class="metric"><span>数量</span><span id="total-btc">-</span></div>
+          </div>
+          <div class="card">
+            <div class="sym">￥ 折合人民币</div>
+            <div class="metric"><span>金额</span><span id="total-cny-yi">- 亿元</span></div>
+          </div>
+          <div class="card">
+            <div class="sym">₿ 现价</div>
+            <div class="metric"><span>BTC/CNY</span><span id="btc-price-cny">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-header">
+          <div class="left">
+            <div class="sym">📈 BTC数量走势</div>
+            <span class="tag">本地刷新轨迹</span>
+          </div>
+        </div>
+        <canvas id="chart-canvas"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="left">
+            <div class="sym">🔎 地址明细</div>
+            <span class="tag">11个地址</span>
+          </div>
+        </div>
+        <div class="grid" id="addr-grid"></div>
+      </div>
+
+      <div class="footer">© 2026 大本桶互联网工作站</div>
+    </div>
+  </div>
+
+  <script>
+    const addresses = [
+      "bc1qs8f9frtpavcjn8rgshfcqy4dh7w6s94hkf8j5f",
+      "3JX2dHyVstG2xbSsmu7wjepY6BCGcFKkU9",
+      "bc1q42ltpxsc6s8fne0jz474tvuvyq2sqw26ud80xy",
+      "bc1qvrwzs8unvu35kcred2z5ujjef36s5jgf3y6tp8",
+      "bc1q66y45cq78ke25kz7rpe94l84avt7zetglzeeqg",
+      "1CpxnUVwfYi1SvQxZuhxMLEKV19H8Lkab",
+      "1G9FZSu8G2AuehmCXLY8KVT4Y9BL5afu9W",
+      "bc1qcx8vxxrld2s7qvz64qp75s3508rkzaxj65l60q",
+      "bc1q80g0wlyltdhjt44z4v2mjgs2rla9jhs6ke6lpx",
+      "bc1q4c9q0nva573jgs7vxu9hf0qyfqqtzy8awn77s0",
+      "bc1qea942uw640l7nvtf3vplv6jd6wvuy06c58cd4k"
+    ];
+
+    function fmtBTC(n){ return Number(n).toFixed(8); }
+    function fmtCNY(n){ return Number(n).toFixed(2); }
+    function truncate(addr){ return addr.length>12 ? addr.slice(0,6)+'…'+addr.slice(-6) : addr; }
+
+    async function fetchBalance(addr){
+      try{
+        const r = await fetch(`https://blockstream.info/api/address/${addr}`, {cache:'no-store'});
+        if(!r.ok) throw new Error('addr_fail');
+        const j = await r.json();
+        const funded = (j.chain_stats?.funded_txo_sum||0) + (j.mempool_stats?.funded_txo_sum||0);
+        const spent  = (j.chain_stats?.spent_txo_sum||0)  + (j.mempool_stats?.spent_txo_sum||0);
+        const sats = funded - spent;
+        return sats / 1e8;
+      }catch(e){
+        return 0;
+      }
+    }
+
+    async function fetchBTCPriceCNY(){
+      try{
+        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=cny',{cache:'no-store'});
+        if(r.ok){
+          const j = await r.json();
+          return j.bitcoin?.cny || 0;
+        }
+      }catch(e){}
+      try{
+        const rb = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT',{cache:'no-store'});
+        const re = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=CNY',{cache:'no-store'});
+        if(rb.ok && re.ok){
+          const pb = await rb.json();
+          const pe = await re.json();
+          const usdt = Number(pb.price||0);
+          const rate = Number(pe.rates?.CNY||0);
+          return usdt * rate;
+        }
+      }catch(e){}
+      return 0;
+    }
+
+    function renderChart(points){
+      const canvas = document.getElementById('chart-canvas');
+      const dpr = window.devicePixelRatio || 1;
+      const rectW = canvas.getBoundingClientRect().width || (canvas.parentElement && canvas.parentElement.getBoundingClientRect().width) || 800;
+      const w = Math.max(320, rectW);
+      const h = 200;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0,0,w,h);
+      const p = 12;
+      if (!points || points.length === 0) {
+        // draw baseline placeholder
+        ctx.strokeStyle = 'rgba(26,115,232,0.36)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(p, h - p - (h-2*p)/2);
+        ctx.lineTo(w - p, h - p - (h-2*p)/2);
+        ctx.stroke();
+        return;
+      }
+      if (points.length === 1) {
+        points = [points[0], points[0]];
+      }
+      const ys = points.map(d=>d.value);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const range = (maxY - minY) || 1;
+      const n = points.length;
+      // grid
+      ctx.strokeStyle = 'rgba(26,115,232,0.18)';
+      ctx.lineWidth = 1;
+      for (let i=0;i<=4;i++){
+        const y = p + i*(h-2*p)/4;
+        ctx.beginPath();
+        ctx.moveTo(p, y);
+        ctx.lineTo(w-p, y);
+        ctx.stroke();
+      }
+      // line
+      ctx.strokeStyle = '#1a73e8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      let lastY = null;
+      for (let i=0;i<n;i++){
+        const x = p + (i/((n-1)||1))*(w-2*p);
+        const y = h - p - ((ys[i]-minY)/range)*(h-2*p);
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        lastY = y;
+      }
+      // n>=2 guaranteed
+      ctx.stroke();
+      // dot
+      const lx = w - p;
+      ctx.fillStyle = '#1a73e8';
+      ctx.beginPath();
+      ctx.arc(lx, lastY, 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    function loadSeries(){
+      try{
+        const raw = localStorage.getItem('btc_total_series') || '[]';
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr)?arr:[];
+      }catch(e){ return []; }
+    }
+    function saveSeries(arr){
+      try{ localStorage.setItem('btc_total_series', JSON.stringify(arr.slice(-100))); }catch(e){}
+    }
+
+    async function refresh(){
+      const status = document.getElementById('status');
+      status.textContent = '刷新中…';
+      const balances = await Promise.all(addresses.map(fetchBalance));
+      const priceCNY = await fetchBTCPriceCNY();
+      const total = balances.reduce((a,b)=>a+b,0);
+      document.getElementById('total-btc').textContent = fmtBTC(total);
+      if (priceCNY) {
+        const totalCNY = total * priceCNY;
+        document.getElementById('btc-price-cny').textContent = fmtCNY(priceCNY);
+        document.getElementById('total-cny-yi').textContent = fmtCNY(totalCNY / 1e8) + ' 亿元';
+      } else {
+        document.getElementById('btc-price-cny').textContent = '获取价格失败';
+        document.getElementById('total-cny-yi').textContent = '获取价格失败';
+      }
+      const grid = document.getElementById('addr-grid');
+      grid.innerHTML = '';
+      addresses.forEach((addr, i)=>{
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="sym">🏷️ ${truncate(addr)}</div>
+          <div class="meaning">地址余额</div>
+          <div class="metric"><span>BTC</span><span>${fmtBTC(balances[i])}</span></div>
+        `;
+        grid.appendChild(card);
+      });
+      const now = new Date();
+      document.getElementById('last-update').textContent = now.toLocaleString();
+      status.textContent = '';
+      const series = loadSeries();
+      series.push({ ts: now.getTime(), value: total });
+      saveSeries(series);
+      renderChart(series);
+    }
+
+    document.getElementById('refresh').addEventListener('click', async ()=>{ await refresh(); });
+    window.addEventListener('resize', ()=> {
+      const series = loadSeries();
+      renderChart(series);
+    });
+    (async ()=>{ await refresh(); })();
+  </script>
+</body>
+</html>

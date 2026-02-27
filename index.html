@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大本桶互联网工作站</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="site-wrapper">
+    <div id="app">
+        <h1 class="site-title">大本桶互联网工作站</h1>
+        <div class="tabs">
+            <span class="tag tab-btn tab-active" data-tab="notes">记事本</span>
+            <span class="tag tab-btn" data-tab="downloads">下载中心</span>
+        </div>
+        <div id="tab-notes">
+            <div class="card">
+                <div class="card-header">
+                    <div class="left">
+                        <div class="sym">📝 记事本</div>
+                        <span class="tag">可编辑保存</span>
+                    </div>
+                </div>
+                <textarea id="notes-content" style="width:100%; height:200px; margin-top:10px; border:1px solid #e8eaed; border-radius:8px; padding:10px; font-size:14px"></textarea>
+                <div style="display:flex; gap:10px; margin-top:10px">
+                    <button id="notes-save" class="tag" style="border:none; cursor:pointer">保存</button>
+                    <button id="notes-pick" class="tag" style="border:none; cursor:pointer">选择文件</button>
+                    <span id="notes-status" class="update-time"></span>
+                </div>
+            </div>
+        </div>
+        <div id="tab-downloads" class="hidden">
+            <div class="card" style="margin-bottom:16px">
+                <div class="card-header">
+                    <div class="left">
+                        <div class="sym">📂 下载目录</div>
+                        <span class="tag">本地扫描</span>
+                    </div>
+                </div>
+                <div class="toolbar">
+                    <input id="downloads-search" type="text" placeholder="搜索文件名">
+                    <select id="downloads-filter">
+                        <option value="all">全部类型</option>
+                        <option value="exe">EXE</option>
+                        <option value="zip">ZIP</option>
+                    </select>
+                    <button id="downloads-pick" class="tag" style="border:none; cursor:pointer">选择下载目录</button>
+                    <button id="downloads-generate" class="tag" style="border:none; cursor:pointer">生成清单</button>
+                    <span id="downloads-status" class="update-time"></span>
+                </div>
+            </div>
+            <div class="grid" id="downloads-grid"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function fetchList() {
+        try {
+            const r = await fetch('/api/files', {cache: 'no-store'});
+            if (r.ok) {
+                const arr = await r.json();
+                if (Array.isArray(arr) && arr.length) return arr;
+            }
+        } catch(e) {}
+        try {
+            const r = await fetch('downloads/', {cache: 'no-store'});
+            if (r.ok) {
+                const html = await r.text();
+                const hrefs = Array.from(html.matchAll(/href="([^"]+)"/g)).map(m => m[1]);
+                const files = hrefs.filter(h => !h.endsWith('/') && !h.startsWith('../') && h !== 'index.json').map(h => {
+                    const name = h.split('/').pop();
+                    return { name, path: 'downloads/' + name, desc: '点击下载' };
+                });
+                if (files.length) return files;
+            }
+        } catch(e) {}
+        try {
+            const r = await fetch('/downloads/', {cache: 'no-store'});
+            if (r.ok) {
+                const html = await r.text();
+                const hrefs = Array.from(html.matchAll(/href="([^"]+)"/g)).map(m => m[1]);
+                const files = hrefs.filter(h => !h.endsWith('/') && !h.startsWith('../') && !h.endsWith('/index.json') && h !== 'index.json').map(h => {
+                    const name = h.split('/').pop();
+                    return { name, path: '/downloads/' + name, desc: '点击下载' };
+                });
+                if (files.length) return files;
+            }
+        } catch(e) {}
+        try {
+            const r = await fetch('downloads/index.json', {cache: 'no-store'});
+            if (r.ok) return r.json();
+        } catch(e) {}
+        try {
+            const r = await fetch('/downloads/index.json', {cache: 'no-store'});
+            if (r.ok) return r.json();
+        } catch(e) {}
+        return [{ name: 'geek.exe', path: 'downloads/geek.exe', desc: '系统维护与应用卸载工具' }];
+    }
+    let downloadsList = [];
+    function fileIcon(name) {
+        const lower = name.toLowerCase();
+        if (lower.endsWith('.exe')) return '🧩';
+        if (lower.endsWith('.zip') || lower.endsWith('.rar') || lower.endsWith('.7z')) return '🗜️';
+        if (lower.endsWith('.txt') || lower.endsWith('.md')) return '📝';
+        return '📄';
+    }
+    function renderList(list) {
+        const grid = document.getElementById('downloads-grid');
+        grid.innerHTML = '';
+        const q = (document.getElementById('downloads-search').value || '').toLowerCase();
+        const f = document.getElementById('downloads-filter').value;
+        const filtered = list.filter(x => {
+            const name = x.name.toLowerCase();
+            if (q && !name.includes(q)) return false;
+            if (f === 'exe' && !name.endsWith('.exe')) return false;
+            if (f === 'zip' && !(name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z'))) return false;
+            return true;
+        }).sort((a,b) => a.name.localeCompare(b.name));
+        filtered.forEach(file => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="sym">${fileIcon(file.name)} ${file.name}</div>
+                <div class="meaning">${file.desc || '点击下载'}</div>
+                <div class="metric"><span>文件名</span><span>${file.name}</span></div>
+                <div style="margin-top:10px"><a class="tag" href="${file.path.startsWith('/') ? file.path : file.path}" download>下载</a></div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+    async function renderDownloads() {
+        const grid = document.getElementById('downloads-grid');
+        const list = await fetchList();
+        const st = document.getElementById('downloads-status');
+        downloadsList = list;
+        renderList(downloadsList);
+        document.getElementById('downloads-pick').addEventListener('click', async () => {
+            try {
+                if (!window.showDirectoryPicker) { st.textContent = '浏览器不支持目录访问'; return; }
+                const handle = await window.showDirectoryPicker();
+                grid.innerHTML = '';
+                st.textContent = '已选择目录';
+                for await (const entry of handle.values()) {
+                    if (entry.kind === 'file') {
+                        const name = entry.name;
+                        downloadsList.push({ name, path: 'downloads/' + name, desc: '点击下载' });
+                    }
+                }
+                renderList(downloadsList);
+            } catch (e) {
+                st.textContent = '未选择目录';
+            }
+        });
+        document.getElementById('downloads-search').addEventListener('input', () => renderList(downloadsList));
+        document.getElementById('downloads-filter').addEventListener('change', () => renderList(downloadsList));
+        document.getElementById('downloads-generate').addEventListener('click', async () => {
+            try {
+                if (!window.showDirectoryPicker) { st.textContent = '浏览器不支持目录访问'; return; }
+                const dir = await window.showDirectoryPicker();
+                const fileHandle = await dir.getFileHandle('index.json', { create: true });
+                const writable = await fileHandle.createWritable();
+                const manifest = downloadsList.map(x => ({ name: x.name, path: 'downloads/' + x.name, desc: x.desc || '点击下载' }));
+                await writable.write(JSON.stringify(manifest, null, 2));
+                await writable.close();
+                st.textContent = '已生成清单';
+            } catch (e) {
+                st.textContent = '生成清单失败';
+            }
+        });
+    }
+    function initTabs() {
+        const btns = document.querySelectorAll('.tab-btn');
+        btns.forEach(b => {
+            b.addEventListener('click', () => {
+                btns.forEach(x => x.classList.remove('tab-active'));
+                b.classList.add('tab-active');
+                const t = b.getAttribute('data-tab');
+                document.getElementById('tab-notes').classList.toggle('hidden', t !== 'notes');
+                document.getElementById('tab-downloads').classList.toggle('hidden', t !== 'downloads');
+            });
+        });
+    }
+    async function loadNotes() {
+        const ta = document.getElementById('notes-content');
+        const st = document.getElementById('notes-status');
+        try {
+            const r = await fetch('/api/notes', {cache:'no-store'});
+            const data = await r.json().catch(() => ({}));
+            if (r.ok) {
+                ta.value = (data && data.content) ? data.content : '';
+                st.textContent = '';
+                return;
+            }
+            st.textContent = (data && data.error === 'missing_github_env')
+                ? '未配置GitHub环境变量，无法保存到源文件'
+                : '后端不可用';
+        } catch(e) {
+            st.textContent = '后端不可用';
+        }
+    }
+    function bindNotes() {
+        const ta = document.getElementById('notes-content');
+        const st = document.getElementById('notes-status');
+        let notesHandle = null;
+        async function pickNotesFile() {
+            try {
+                if (window.showOpenFilePicker) {
+                    const [handle] = await window.showOpenFilePicker({
+                        multiple: false,
+                        types: [{ description: '文本', accept: { 'text/plain': ['.txt'] } }]
+                    });
+                    notesHandle = handle;
+                    const file = await handle.getFile();
+                    const text = await file.text();
+                    ta.value = text;
+                    st.textContent = '已绑定文件';
+                    return;
+                }
+                st.textContent = '浏览器不支持文件访问';
+            } catch (e) {
+                st.textContent = '未选择文件';
+            }
+        }
+        document.getElementById('notes-pick').addEventListener('click', pickNotesFile);
+        document.getElementById('notes-save').addEventListener('click', async () => {
+            const content = ta.value;
+            try {
+                if (notesHandle && notesHandle.createWritable) {
+                    const writable = await notesHandle.createWritable();
+                    await writable.write(content);
+                    await writable.close();
+                    st.textContent = '已保存到本地源文件';
+                    return;
+                }
+                const r = await fetch('/api/notes', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({content}) });
+                const data = await r.json().catch(() => ({}));
+                if (r.ok) { st.textContent = '已保存'; return; }
+                st.textContent = (data && data.error === 'missing_github_env')
+                    ? '未配置GitHub环境变量，无法保存到源文件'
+                    : (data && data.error === 'github_write_failed')
+                        ? 'GitHub写入失败，请检查Token权限与分支'
+                        : '保存失败';
+            } catch(e) {
+                st.textContent = '保存失败';
+            }
+        });
+    }
+    renderDownloads();
+    initTabs();
+    loadNotes();
+    bindNotes();
+    const footer = document.createElement('div');
+    footer.className = 'footer';
+    footer.textContent = '© 2026 大本桶互联网工作站';
+    document.getElementById('app').appendChild(footer);
+</script>
+
+</body>
+</html>
